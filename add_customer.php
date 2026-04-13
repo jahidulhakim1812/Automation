@@ -13,115 +13,87 @@ $dbname = "freelancing";
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
-// Ensure services table exists
-$conn->query("CREATE TABLE IF NOT EXISTS services (
+// Create customers table if not exists
+$conn->query("CREATE TABLE IF NOT EXISTS customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    service_name VARCHAR(255) NOT NULL,
-    description TEXT,
-    category VARCHAR(100),
-    duration VARCHAR(50),
-    fee DECIMAL(10,2),
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
-
-// Insert default services if table empty
-$check = $conn->query("SELECT COUNT(*) as cnt FROM services");
-$row = $check->fetch_assoc();
-if ($row['cnt'] == 0) {
-    $defaults = [
-        ['Graphic Design', 'Logo design, banner creation, social media graphics', 'Graphic Design', '2 months', 8000],
-        ['Video Editing', 'Professional video editing and motion graphics', 'Video Editing', '3 months', 12000],
-        ['Social Media Marketing', 'Social media strategy and content management', 'Social Media Marketing', '2 months', 10000],
-        ['Digital Marketing', 'SEO, SEM, and digital advertising', 'Digital Marketing', '4 months', 15000],
-        ['Microsoft Office', 'Word, Excel, PowerPoint training', 'Office Application', '1 month', 5000]
-    ];
-    $stmt = $conn->prepare("INSERT INTO services (service_name, description, category, duration, fee) VALUES (?, ?, ?, ?, ?)");
-    foreach ($defaults as $svc) {
-        $stmt->bind_param("ssssd", $svc[0], $svc[1], $svc[2], $svc[3], $svc[4]);
-        $stmt->execute();
-    }
-    $stmt->close();
-}
 
 // Handle Add / Update / Delete
 $message = "";
 $error = "";
 
-// Add
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_service'])) {
-    $service_name = trim($_POST['service_name']);
-    $description = trim($_POST['description']);
-    $category = trim($_POST['category']);
-    $duration = trim($_POST['duration']);
-    $fee = floatval($_POST['fee']);
+// Add customer
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_customer'])) {
+    $name = trim($_POST['name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
+    $address = trim($_POST['address']);
     
-    if (empty($service_name)) $error = "Service name is required!";
-    elseif (empty($category)) $error = "Category is required!";
+    if (empty($name)) $error = "Customer name is required!";
     else {
-        $stmt = $conn->prepare("INSERT INTO services (service_name, description, category, duration, fee) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssd", $service_name, $description, $category, $duration, $fee);
-        if ($stmt->execute()) $message = "Service added successfully!";
+        $stmt = $conn->prepare("INSERT INTO customers (name, email, phone, address) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $name, $email, $phone, $address);
+        if ($stmt->execute()) $message = "Customer added successfully!";
         else $error = "Error: " . $stmt->error;
         $stmt->close();
     }
 }
 
-// Update
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_service'])) {
-    $id = intval($_POST['service_id']);
-    $service_name = trim($_POST['service_name']);
-    $description = trim($_POST['description']);
-    $category = trim($_POST['category']);
-    $duration = trim($_POST['duration']);
-    $fee = floatval($_POST['fee']);
+// Update customer
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_customer'])) {
+    $id = intval($_POST['customer_id']);
+    $name = trim($_POST['name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
+    $address = trim($_POST['address']);
     
-    if (empty($service_name)) $error = "Service name is required!";
+    if (empty($name)) $error = "Customer name is required!";
     else {
-        $stmt = $conn->prepare("UPDATE services SET service_name=?, description=?, category=?, duration=?, fee=? WHERE id=?");
-        $stmt->bind_param("ssssdi", $service_name, $description, $category, $duration, $fee, $id);
-        if ($stmt->execute()) $message = "Service updated successfully!";
+        $stmt = $conn->prepare("UPDATE customers SET name=?, email=?, phone=?, address=? WHERE id=?");
+        $stmt->bind_param("ssssi", $name, $email, $phone, $address, $id);
+        if ($stmt->execute()) $message = "Customer updated successfully!";
         else $error = "Error: " . $stmt->error;
         $stmt->close();
     }
 }
 
-// Delete
+// Delete customer
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
-    $stmt = $conn->prepare("DELETE FROM services WHERE id=?");
+    $stmt = $conn->prepare("DELETE FROM customers WHERE id=?");
     $stmt->bind_param("i", $id);
-    if ($stmt->execute()) $message = "Service deleted successfully!";
-    else $error = "Error deleting service.";
+    if ($stmt->execute()) $message = "Customer deleted successfully!";
+    else $error = "Error deleting customer.";
     $stmt->close();
 }
 
 // Search
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-$sql = "SELECT * FROM services";
+$sql = "SELECT * FROM customers";
 if (!empty($search)) {
     $searchTerm = "%$search%";
-    $sql .= " WHERE service_name LIKE ? OR category LIKE ? OR description LIKE ?";
+    $sql .= " WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? OR address LIKE ?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sss", $searchTerm, $searchTerm, $searchTerm);
+    $stmt->bind_param("ssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm);
     $stmt->execute();
-    $services = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $customers = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 } else {
-    $result = $conn->query("SELECT * FROM services ORDER BY category, service_name");
-    $services = $result->fetch_all(MYSQLI_ASSOC);
+    $result = $conn->query("SELECT * FROM customers ORDER BY id DESC");
+    $customers = $result->fetch_all(MYSQLI_ASSOC);
 }
 
-// Get distinct categories for dropdown
-$catResult = $conn->query("SELECT DISTINCT category FROM services ORDER BY category");
-$existing_categories = [];
-while ($row = $catResult->fetch_assoc()) $existing_categories[] = $row['category'];
-
-// For edit mode: fetch the service to edit
-$edit_service = null;
+// For edit mode
+$edit_customer = null;
 if (isset($_GET['edit'])) {
     $edit_id = intval($_GET['edit']);
-    foreach ($services as $svc) {
-        if ($svc['id'] == $edit_id) { $edit_service = $svc; break; }
+    foreach ($customers as $cust) {
+        if ($cust['id'] == $edit_id) { $edit_customer = $cust; break; }
     }
 }
 $conn->close();
@@ -131,7 +103,7 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Services - AR TECH SOLUTION</title>
+    <title>Add Customer - AR TECH SOLUTION</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
@@ -211,8 +183,6 @@ $conn->close();
             font-weight: normal;
         }
         .menu-group.active .submenu { display: flex; }
-        .horizontal-submenu { flex-direction: row; flex-wrap: wrap; gap: 5px; }
-        .horizontal-submenu a { padding: 10px 20px; white-space: nowrap; }
 
         .toggle-arrow {
             position: fixed;
@@ -239,7 +209,6 @@ $conn->close();
 
         h2 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
 
-        /* Alerts */
         .alert {
             padding: 12px;
             border-radius: 8px;
@@ -249,8 +218,7 @@ $conn->close();
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* Two‑column layout */
-        .services-wrapper {
+        .customer-wrapper {
             display: flex;
             gap: 30px;
             flex-wrap: wrap;
@@ -275,7 +243,7 @@ $conn->close();
             margin-bottom: 6px;
             color: #2c3e50;
         }
-        .form-group input, .form-group textarea, .form-group select {
+        .form-group input, .form-group textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -331,30 +299,21 @@ $conn->close();
             color: white;
             cursor: pointer;
         }
-        .services-table {
+        .customer-table {
             width: 100%;
             border-collapse: collapse;
         }
-        .services-table th, .services-table td {
+        .customer-table th, .customer-table td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #eee;
         }
-        .services-table th {
+        .customer-table th {
             background: #f8f9fa;
             color: #2c3e50;
             border-top: 2px solid #1abc9c;
         }
-        .services-table tr:hover { background: #f5f5f5; }
-        .category-badge, .fee-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .category-badge { background: #e8f4fc; color: #3498db; }
-        .fee-badge { background: #e8f6f3; color: #16a085; }
+        .customer-table tr:hover { background: #f5f5f5; }
         .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
         .footer {
@@ -405,12 +364,10 @@ $conn->close();
         </div>
     </div>
     <div class="menu-group active">
-        <div class="menu-toggle">🛠️ Services ▾</div>
+        <div class="menu-toggle">👥 Customers ▾</div>
         <div class="submenu">
             <a href="add_customer.php">Add Customer</a>
-            <a href="assign_service.php">Assign Services</a>
-            <a href="services.php">Manage Services</a>
-            <a href="service_categories.php">Service Categories</a>
+            <a href="customer_list.php">Customer List</a>
         </div>
     </div>
     <a href="delete.php">🗑️ Delete</a>
@@ -451,7 +408,7 @@ $conn->close();
 <div class="toggle-arrow" id="toggleBtn">◀</div>
 
 <div class="container" id="mainContent">
-    <h2>🛠️ Manage Services</h2>
+    <h2>👥 Customer Management</h2>
 
     <?php if ($message): ?>
         <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
@@ -460,86 +417,73 @@ $conn->close();
         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <div class="services-wrapper">
-        <!-- Add / Edit Form -->
+    <div class="customer-wrapper">
+        <!-- Add / Edit Customer Form -->
         <div class="form-card">
             <h3 style="margin-top:0; border-left:4px solid #1abc9c; padding-left:12px;">
-                <?= $edit_service ? '✏️ Edit Service' : '➕ Add New Service' ?>
+                <?= $edit_customer ? '✏️ Edit Customer' : '➕ Add New Customer' ?>
             </h3>
             <form method="POST">
-                <?php if ($edit_service): ?>
-                    <input type="hidden" name="service_id" value="<?= $edit_service['id'] ?>">
+                <?php if ($edit_customer): ?>
+                    <input type="hidden" name="customer_id" value="<?= $edit_customer['id'] ?>">
                 <?php endif; ?>
                 <div class="form-group">
-                    <label>Service Name *</label>
-                    <input type="text" name="service_name" value="<?= $edit_service ? htmlspecialchars($edit_service['service_name']) : '' ?>" required>
+                    <label>Full Name *</label>
+                    <input type="text" name="name" value="<?= $edit_customer ? htmlspecialchars($edit_customer['name']) : '' ?>" required>
                 </div>
                 <div class="form-group">
-                    <label>Description</label>
-                    <textarea name="description"><?= $edit_service ? htmlspecialchars($edit_service['description']) : '' ?></textarea>
+                    <label>Email</label>
+                    <input type="email" name="email" value="<?= $edit_customer ? htmlspecialchars($edit_customer['email']) : '' ?>">
                 </div>
                 <div class="form-group">
-                    <label>Category *</label>
-                    <select name="category" id="categorySelect" required>
-                        <option value="">-- Select --</option>
-                        <?php foreach ($existing_categories as $cat): ?>
-                            <option value="<?= htmlspecialchars($cat) ?>" <?= ($edit_service && $edit_service['category'] == $cat) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($cat) ?>
-                            </option>
-                        <?php endforeach; ?>
-                        <option value="other">Other (new category)</option>
-                    </select>
-                    <input type="text" name="new_category" id="newCategoryInput" placeholder="Enter new category" style="margin-top:8px; display:none;">
+                    <label>Phone</label>
+                    <input type="text" name="phone" value="<?= $edit_customer ? htmlspecialchars($edit_customer['phone']) : '' ?>">
                 </div>
                 <div class="form-group">
-                    <label>Duration</label>
-                    <input type="text" name="duration" placeholder="e.g., 2 months" value="<?= $edit_service ? htmlspecialchars($edit_service['duration']) : '' ?>">
+                    <label>Address</label>
+                    <textarea name="address"><?= $edit_customer ? htmlspecialchars($edit_customer['address']) : '' ?></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Fee (৳)</label>
-                    <input type="number" step="0.01" name="fee" placeholder="0.00" value="<?= $edit_service ? htmlspecialchars($edit_service['fee']) : '' ?>">
-                </div>
-                <button type="submit" name="<?= $edit_service ? 'update_service' : 'add_service' ?>" class="btn">
-                    <?= $edit_service ? 'Update Service' : 'Add Service' ?>
+                <button type="submit" name="<?= $edit_customer ? 'update_customer' : 'add_customer' ?>" class="btn">
+                    <?= $edit_customer ? 'Update Customer' : 'Add Customer' ?>
                 </button>
-                <?php if ($edit_service): ?>
-                    <a href="services.php" class="btn btn-secondary" style="display:block; text-align:center; margin-top:10px;">Cancel</a>
+                <?php if ($edit_customer): ?>
+                    <a href="add_customer.php" class="btn btn-secondary" style="display:block; text-align:center; margin-top:10px;">Cancel</a>
                 <?php endif; ?>
             </form>
         </div>
 
-        <!-- List + Search -->
+        <!-- Customer List + Search -->
         <div class="list-card">
             <div class="search-bar">
                 <form method="GET" style="display:flex; width:100%; gap:10px;">
-                    <input type="text" name="search" placeholder="Search by name, category, description..." value="<?= htmlspecialchars($search) ?>">
+                    <input type="text" name="search" placeholder="Search by name, email, phone, address..." value="<?= htmlspecialchars($search) ?>">
                     <button type="submit">🔍</button>
                     <?php if ($search): ?>
-                        <a href="services.php" style="background:#e74c3c; color:white; padding:0 15px; border-radius:30px; text-decoration:none; line-height:40px;">Clear</a>
+                        <a href="add_customer.php" style="background:#e74c3c; color:white; padding:0 15px; border-radius:30px; text-decoration:none; line-height:40px;">Clear</a>
                     <?php endif; ?>
                 </form>
             </div>
             <h3 style="margin-top:0; border-left:4px solid #1abc9c; padding-left:12px;">
-                📋 Services List (<?= count($services) ?>)
+                📋 Customers List (<?= count($customers) ?>)
             </h3>
-            <?php if (empty($services)): ?>
-                <p style="text-align:center; color:#666; padding:20px;">No services found.</p>
+            <?php if (empty($customers)): ?>
+                <p style="text-align:center; color:#666; padding:20px;">No customers found.</p>
             <?php else: ?>
                 <div style="overflow-x:auto;">
-                    <table class="services-table">
+                    <table class="customer-table">
                         <thead>
-                            <tr><th>Service Name</th><th>Category</th><th>Duration</th><th>Fee</th><th>Actions</th></tr>
+                            <tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Actions</th></tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($services as $svc): ?>
+                            <?php foreach ($customers as $cust): ?>
                                 <tr>
-                                    <td><strong><?= htmlspecialchars($svc['service_name']) ?></strong><br><small><?= htmlspecialchars(substr($svc['description'],0,50)) ?>...</small></td>
-                                    <td><span class="category-badge"><?= htmlspecialchars($svc['category']) ?></span></td>
-                                    <td><?= htmlspecialchars($svc['duration']) ?></td>
-                                    <td><span class="fee-badge">৳ <?= number_format($svc['fee'],2) ?></span></td>
+                                    <td><strong><?= htmlspecialchars($cust['name']) ?></strong></td>
+                                    <td><?= htmlspecialchars($cust['email']) ?></td>
+                                    <td><?= htmlspecialchars($cust['phone']) ?></td>
+                                    <td><?= htmlspecialchars(substr($cust['address'],0,50)) ?>...</td>
                                     <td class="actions">
-                                        <a href="?edit=<?= $svc['id'] ?>" class="btn btn-small">Edit</a>
-                                        <a href="?delete=<?= $svc['id'] ?>" class="btn btn-small btn-danger" onclick="return confirm('Delete this service?')">Delete</a>
+                                        <a href="?edit=<?= $cust['id'] ?>" class="btn btn-small">Edit</a>
+                                        <a href="?delete=<?= $cust['id'] ?>" class="btn btn-small btn-danger" onclick="return confirm('Delete this customer?')">Delete</a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -570,33 +514,5 @@ $conn->close();
     document.querySelectorAll('.menu-toggle').forEach(t => {
         t.addEventListener('click', () => t.parentElement.classList.toggle('active'));
     });
-    // Category "Other" handling
-    const catSelect = document.getElementById('categorySelect');
-    const newCatInput = document.getElementById('newCategoryInput');
-    function handleCategory() {
-        if (catSelect.value === 'other') {
-            newCatInput.style.display = 'block';
-            newCatInput.required = true;
-            newCatInput.name = 'category';
-            catSelect.name = 'old_category';
-        } else {
-            newCatInput.style.display = 'none';
-            newCatInput.required = false;
-            newCatInput.name = 'new_category';
-            catSelect.name = 'category';
-        }
-    }
-    catSelect.addEventListener('change', handleCategory);
-    // If editing and category not in list, pre-select "other" and fill input
-    <?php if ($edit_service && !in_array($edit_service['category'], $existing_categories)): ?>
-        catSelect.value = 'other';
-        newCatInput.style.display = 'block';
-        newCatInput.value = '<?= htmlspecialchars($edit_service['category']) ?>';
-        newCatInput.required = true;
-        newCatInput.name = 'category';
-        catSelect.name = 'old_category';
-    <?php endif; ?>
-    handleCategory();
 </script>
 </body>
-</html>
