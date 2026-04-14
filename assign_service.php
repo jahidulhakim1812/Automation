@@ -79,17 +79,123 @@ $customers = $conn->query("SELECT id, name, email, phone FROM customers ORDER BY
 $services  = $conn->query("SELECT id, service_name, fee FROM services ORDER BY service_name")->fetch_all(MYSQLI_ASSOC);
 
 $message = "";
-$error = "";
+$error   = "";
 
-// Handle form submission (assign service to customer)
+// ========== SAVE INVOICE ==========
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
+    $customer_id  = intval($_POST['customer_id'] ?? 0);
+    $invoice_date = $_POST['invoice_date'] ?? date('Y-m-d');
+    $due_date     = $_POST['due_date']     ?? date('Y-m-d');
+    $discount     = floatval($_POST['discount']     ?? 0);
+    $paid_amount  = floatval($_POST['paid_amount']  ?? 0);
+    $notes        = trim($_POST['notes']            ?? '');
+    $status       = $_POST['status']                ?? 'unpaid';
+    $items_json   = $_POST['items_json']            ?? '[]';
+
+    // Validate status
+    $allowed_status = ['unpaid', 'paid', 'partial', 'cancelled'];
+    if (!in_array($status, $allowed_status)) $status = 'unpaid';
+
+    // Decode items
+    $items_arr = json_decode($items_json, true);
+    if (!is_array($items_arr)) $items_arr = [];
+
+    if ($customer_id <= 0) {
+        $error = "Please select a customer.";
+    } elseif (empty($items_arr)) {
+        $error = "Please add at least one item before saving.";
+    } else {
+        // Calculate totals
+        $subtotal = 0;
+        foreach ($items_arr as $item) {
+            $subtotal += floatval($item['total'] ?? 0);
+        }
+        $total = max(0, $subtotal - $discount);
+        $paid_amount = min($paid_amount, $total); // Can't pay more than total
+
+        // Generate unique invoice number: INV-YYYYMMDD-XXX
+        $date_part = date('Ymd', strtotime($invoice_date));
+        do {
+            $rand_part   = str_pad(rand(100, 999), 3, '0', STR_PAD_LEFT);
+            $inv_number  = "INV-{$date_part}-{$rand_part}";
+            $check = $conn->prepare("SELECT id FROM invoices_new WHERE invoice_number = ?");
+            $check->bind_param("s", $inv_number);
+            $check->execute();
+            $check->store_result();
+            $exists = $check->num_rows > 0;
+            $check->close();
+        } while ($exists);
+
+        // Begin transaction
+        $conn->begin_transaction();
+        try {
+            // Insert invoice
+            $stmt = $conn->prepare(
+                "INSERT INTO invoices_new
+                    (invoice_number, customer_id, invoice_date, due_date, subtotal, discount, total, paid_amount, notes, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            $stmt->bind_param(
+                "sississdss",
+                $inv_number, $customer_id, $invoice_date, $due_date,
+                $subtotal, $discount, $total, $paid_amount, $notes, $status
+            );
+
+            if (!$stmt->execute()) {
+                throw new Exception("Invoice insert failed: " . $stmt->error);
+            }
+            $invoice_id = $conn->insert_id;
+            $stmt->close();
+
+            // Insert each item
+            $item_stmt = $conn->prepare(
+                "INSERT INTO invoice_items (invoice_id, service_id, description, qty, unit_price, total)
+                 VALUES (?, ?, ?, ?, ?, ?)"
+            );
+            foreach ($items_arr as $item) {
+                $svc_id     = !empty($item['service_id']) ? intval($item['service_id']) : null;
+                $desc       = substr(trim($item['description'] ?? ''), 0, 255);
+                $qty        = max(1, intval($item['qty'] ?? 1));
+                $unit_price = floatval($item['unit_price'] ?? 0);
+                $item_total = floatval($item['total']      ?? 0);
+
+$item_stmt->bind_param("iisidd", $invoice_id, $svc_id, $desc, $qty, $unit_price, $item_total);
+                // Handle nullable service_id properly
+                if ($svc_id === null) {
+                    $item_stmt->bind_param("iisdd d", $invoice_id, $svc_id, $desc, $qty, $unit_price, $item_total);
+                    // Re-bind with null support
+                    $null = null;
+                    $item_stmt->bind_param("iisdd d", $invoice_id, $null, $desc, $qty, $unit_price, $item_total);
+                }
+
+                if (!$item_stmt->execute()) {
+                    throw new Exception("Item insert failed: " . $item_stmt->error);
+                }
+            }
+            $item_stmt->close();
+
+            $conn->commit();
+            $message = "Invoice <strong>{$inv_number}</strong> saved successfully! Total: ৳" . number_format($total, 2);
+
+            // Pass the generated invoice number to JS for the receipt display
+            $saved_inv_number = $inv_number;
+
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error = "Failed to save invoice: " . $e->getMessage();
+        }
+    }
+}
+
+// ========== ASSIGN SERVICE (existing handler) ==========
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['assign_service'])) {
     $customer_id = intval($_POST['customer_id']);
     $service_id  = intval($_POST['service_id']);
     $assign_date = $_POST['assign_date'] ?? date('Y-m-d');
-    
+
     if ($customer_id > 0 && $service_id > 0) {
         $stmt = $conn->prepare("INSERT INTO customer_services (customer_id, service_id, assign_date) VALUES (?, ?, ?)");
-        $stmt->bind_param("iis", $customer_id, $service_id, $assign_date); // ✅ 3 types, 3 variables
+        $stmt->bind_param("iis", $customer_id, $service_id, $assign_date);
         if ($stmt->execute()) {
             $message = "Service assigned successfully!";
         } else {
@@ -469,41 +575,19 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 
 /* PRINT INVOICE STYLES - A4 PERFECT */
 @media print {
-    body * {
-        visibility: hidden;
-    }
-    #print-invoice, #print-invoice * {
-        visibility: visible;
-    }
+    body * { visibility: hidden; }
+    #print-invoice, #print-invoice * { visibility: visible; }
     #print-invoice {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        max-width: 210mm;
-        margin: 0 auto;
-        padding: 10mm;
-        box-sizing: border-box;
-        background: white;
+        position: absolute; left: 0; top: 0;
+        width: 100%; max-width: 210mm;
+        margin: 0 auto; padding: 10mm;
+        box-sizing: border-box; background: white;
     }
-    @page {
-        size: A4;
-        margin: 1.5cm;
-    }
-    .pi-table td, .pi-table th {
-        font-size: 12px;
-        padding: 8px 6px;
-    }
-    .pi-header, .pi-parties, .pi-footer-note {
-        page-break-inside: avoid;
-    }
-    .pi-table {
-        page-break-inside: auto;
-    }
-    .pi-table tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-    }
+    @page { size: A4; margin: 1.5cm; }
+    .pi-table td, .pi-table th { font-size: 12px; padding: 8px 6px; }
+    .pi-header, .pi-parties, .pi-footer-note { page-break-inside: avoid; }
+    .pi-table { page-break-inside: auto; }
+    .pi-table tr { page-break-inside: avoid; page-break-after: auto; }
     .navbar, .side-nav, .toggle-arrow, .footer,
     .item-builder, .btn-save, .btn-print, .btn-clear,
     .add-item-btn, .del-btn, .alert, .card:not(.receipt-card),
@@ -599,6 +683,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
         <div class="submenu">
             <a href="services.php">Manage Services</a>
             <a href="assign_service.php">Assign Service</a>
+            <a href="invoice_list.php">Invoice List</a>
         </div>
     </div>
     <a href="delete.php">🗑️ Delete</a>
@@ -643,7 +728,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
     <div class="page-title"><span>🧾</span> Point of Sale — Invoice Generator</div>
 
     <?php if ($message): ?>
-        <div class="alert alert-success">✅ <?= htmlspecialchars($message) ?></div>
+        <div class="alert alert-success">✅ <?= $message ?></div>
     <?php endif; ?>
     <?php if ($error): ?>
         <div class="alert alert-error">❌ <?= htmlspecialchars($error) ?></div>
@@ -801,8 +886,8 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
                         <label>Discount (৳)</label>
                         <input type="number" name="discount" id="discount_input" min="0" step="0.01" value="0" placeholder="0.00" oninput="updateReceipt()">
                     </div>
-                    
-                    <!-- NEW: Amount Paid Section -->
+
+                    <!-- Amount Paid Section -->
                     <div class="payment-details">
                         <div class="payment-line">
                             <span class="label">Total Amount:</span>
@@ -817,7 +902,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
                             <span class="amount" id="r_balance_due">৳ 0.00</span>
                         </div>
                     </div>
-                    
+
                     <div class="r-total-box">
                         <span class="r-total-label">TOTAL DUE</span>
                         <span class="r-total-amt" id="r-total">৳ 0.00</span>
@@ -860,9 +945,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
         </div>
         <table class="pi-table">
             <thead>
-                <tr>
-                    <th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th>
-                </tr>
+                <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
             </thead>
             <tbody id="pi-tbody"></tbody>
             <tfoot>
@@ -896,6 +979,14 @@ toggleBtn.addEventListener('click', () => {
 document.querySelectorAll('.menu-toggle').forEach(t => {
     t.addEventListener('click', () => t.parentElement.classList.toggle('active'));
 });
+
+// ── After a successful save, update the receipt invoice number ──
+<?php if (!empty($saved_inv_number)): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('r-inv-num').textContent = '<?= $saved_inv_number ?>';
+    document.getElementById('pi-invnum').textContent  = '<?= $saved_inv_number ?>';
+});
+<?php endif; ?>
 
 // Customer selection
 document.getElementById('customer_select').addEventListener('change', function() {
@@ -1020,7 +1111,7 @@ function updatePaidAmount() {
     const balance = totalDue - paid;
     document.getElementById('r_balance_due').textContent = fmt(balance);
     document.getElementById('r-total').textContent = fmt(balance);
-    
+
     // Auto-update status based on paid amount
     const statusSelect = document.getElementById('status_select');
     if (balance <= 0 && totalDue > 0) {
@@ -1030,8 +1121,7 @@ function updatePaidAmount() {
     } else if (paid === 0 && totalDue > 0) {
         statusSelect.value = 'unpaid';
     }
-    
-    // Update print preview
+
     updatePrintPaidFields(totalDue, paid, balance);
 }
 
@@ -1051,12 +1141,12 @@ function updateReceipt() {
         document.getElementById('paid_amount_input').value = paid.toFixed(2);
     }
     const balance = totalDue - paid;
-    
+
     document.getElementById('r-subtotal').textContent = fmt(subtotal);
     document.getElementById('r_total_amount').textContent = fmt(totalDue);
     document.getElementById('r_balance_due').textContent = fmt(balance);
     document.getElementById('r-total').textContent = fmt(balance);
-    
+
     // Update receipt items list
     let rHtml = '';
     if (items.length === 0) {
@@ -1067,7 +1157,7 @@ function updateReceipt() {
         });
     }
     document.getElementById('r-items').innerHTML = rHtml;
-    
+
     // Update print invoice table
     let piHtml = '';
     items.forEach((item, idx) => {
@@ -1085,7 +1175,7 @@ function updateReceipt() {
     document.getElementById('pi-total-display').textContent = fmt(totalDue);
     document.getElementById('pi-paid').textContent = fmt(paid);
     document.getElementById('pi-balance').textContent = fmt(balance);
-    
+
     // Auto-update status
     const statusSelect = document.getElementById('status_select');
     if (balance <= 0 && totalDue > 0) {
@@ -1114,11 +1204,12 @@ function clearAll() {
     document.getElementById('status_select').value = 'unpaid';
     document.getElementById('invoice_date').value = '<?= date('Y-m-d') ?>';
     document.getElementById('due_date').value = '<?= date('Y-m-d', strtotime('+7 days')) ?>';
+    // Generate fresh invoice number
+    document.getElementById('r-inv-num').textContent = 'INV-<?= date('Ymd') ?>-' + String(Math.floor(Math.random()*900)+100);
     updateReceipt();
 }
 
 function printInvoice() {
-    // Sync all print data
     const custSel = document.getElementById('customer_select');
     const custOpt = custSel.options[custSel.selectedIndex];
     document.getElementById('pi-invnum').textContent = document.getElementById('r-inv-num').textContent;
@@ -1130,20 +1221,20 @@ function printInvoice() {
         document.getElementById('pi-customer').textContent = custOpt.dataset.name;
         document.getElementById('pi-contact').textContent = (custOpt.dataset.email || '') + '   ' + (custOpt.dataset.phone || '');
     }
-    updateReceipt(); // Ensure latest amounts
+    updateReceipt();
     window.print();
 }
 
 // Generate random invoice number on page load
 document.getElementById('r-inv-num').textContent = 'INV-<?= date('Ymd') ?>-' + String(Math.floor(Math.random()*900)+100);
 
-// Event listener for discount to update paid amount validation
+// Event listener for discount
 document.getElementById('discount_input').addEventListener('input', function() {
     updatePaidAmount();
     updateReceipt();
 });
 
-// Initialize receipt on load
+// Initialize
 updateReceipt();
 </script>
 </body>
