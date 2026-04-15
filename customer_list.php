@@ -1,47 +1,64 @@
 <?php
 session_start();
-
-// Admin session check
 if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
     header("Location: login.php");
     exit();
 }
 
 $servername = "localhost";
-$username   = "root";
-$password   = "";
-$dbname     = "freelancing";
+$username = "root";
+$password = "";
+$dbname = "freelancing";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
+
+// Create table if not exists (just in case)
+$conn->query("CREATE TABLE IF NOT EXISTS customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)");
+
+// Handle delete request
+$delete_msg = "";
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+    $stmt = $conn->prepare("DELETE FROM customers WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    if ($stmt->execute()) {
+        $delete_msg = "Customer deleted successfully!";
+    }
+    $stmt->close();
 }
 
-$search_category = '';
-if (isset($_GET['category']) && !empty(trim($_GET['category']))) {
-    $search_category = $conn->real_escape_string(trim($_GET['category']));
-    $sql = "SELECT student_id, name, email, phone_number, course_status, course_category
-            FROM students
-            WHERE course_status = 'incomplete' AND course_category LIKE '%$search_category%'
-            ORDER BY name ASC";
+// Search functionality
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$customers = [];
+if (!empty($search)) {
+    $searchTerm = "%$search%";
+    $stmt = $conn->prepare("SELECT * FROM customers WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? OR address LIKE ? ORDER BY id DESC");
+    $stmt->bind_param("ssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $customers = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 } else {
-    $sql = "SELECT student_id, name, email, phone_number, course_status, course_category
-            FROM students
-            WHERE course_status = 'incomplete'
-            ORDER BY name ASC";
+    $result = $conn->query("SELECT * FROM customers ORDER BY id DESC");
+    $customers = $result->fetch_all(MYSQLI_ASSOC);
 }
 
-$result = $conn->query($sql);
-if (!$result) {
-    die("<p style='color:red; text-align:center;'>❌ Query Failed: " . htmlspecialchars($conn->error) . "</p>");
-}
+$conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Incomplete Students — AR TECH SOLUTION</title>
+<title>Customer List — AR TECH SOLUTION</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -223,6 +240,13 @@ body::before {
     transition: opacity .2s;
 }
 .search-card button:hover { opacity: .85; }
+.search-card .clear-btn {
+    background: linear-gradient(135deg, var(--accent3), #c0392b);
+}
+.clear-btn { 
+    background: linear-gradient(135deg, var(--accent3), #c0392b) !important;
+    color: white !important;
+}
 
 /* TABLE CARD */
 .table-card {
@@ -257,15 +281,40 @@ td {
 tr:hover td {
     background: rgba(255,255,255,0.03);
 }
-.status-incomplete {
-    color: var(--accent3);
-    font-weight: 700;
+.actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.btn-small {
+    background: linear-gradient(135deg, var(--accent2), #9b59b6);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 600;
+    transition: opacity .2s;
+    display: inline-block;
+}
+.btn-small:hover { opacity: .85; }
+.btn-danger {
+    background: linear-gradient(135deg, var(--accent3), #c0392b);
 }
 .no-data {
     text-align: center;
     padding: 40px;
     color: var(--muted);
     font-size: 14px;
+}
+.alert {
+    background: rgba(6,214,160,0.15);
+    border: 1px solid var(--accent5);
+    color: var(--accent5);
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
 /* FOOTER */
@@ -294,6 +343,7 @@ tr:hover td {
     .search-card form { flex-direction: column; }
     .search-card button { width: 100%; }
     th, td { padding: 8px 6px; font-size: 11px; }
+    .actions { flex-direction: column; gap: 4px; }
 }
 </style>
 </head>
@@ -324,47 +374,59 @@ include 'navigation.php';
 
 <!-- MAIN CONTENT -->
 <main class="main" id="mainContent">
-    <div class="section-title">❌ Incomplete Students</div>
+    <div class="section-title">👥 Customer List</div>
+
+    <?php if ($delete_msg): ?>
+        <div class="alert"><?php echo htmlspecialchars($delete_msg); ?></div>
+    <?php endif; ?>
 
     <!-- Search Card -->
     <div class="search-card">
         <form method="GET" action="">
-            <input type="text" name="category" placeholder="Search by Course Category" value="<?php echo htmlspecialchars($search_category); ?>">
+            <input type="text" name="search" placeholder="Search by name, email, phone, address..." value="<?php echo htmlspecialchars($search); ?>">
             <button type="submit">🔍 Search</button>
+            <?php if ($search): ?>
+                <a href="customer_list.php" class="clear-btn" style="padding:12px 24px; background:linear-gradient(135deg, #ff6b6b, #c0392b); border-radius:12px; text-decoration:none; color:white; font-weight:700;">Clear</a>
+            <?php endif; ?>
         </form>
     </div>
 
     <!-- Table Card -->
     <div class="table-card">
-        <?php if ($result->num_rows > 0): ?>
+        <?php if (empty($customers)): ?>
+            <div class="no-data">📭 No customers found.</div>
+        <?php else: ?>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
-                            <th>Student ID</th>
+                            <th>ID</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Course Name</th>
                             <th>Phone</th>
-                            <th>Status</th>
+                            <th>Address</th>
+                            <th>Created</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while($row = $result->fetch_assoc()): ?>
+                        <?php foreach ($customers as $cust): ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($row['student_id']); ?></td>
-                            <td><?php echo htmlspecialchars($row['name']); ?></td>
-                            <td><?php echo htmlspecialchars($row['email']); ?></td>
-                            <td><?php echo htmlspecialchars($row['course_category']); ?></td>
-                            <td><?php echo htmlspecialchars($row['phone_number']); ?></td>
-                            <td><span class="status-incomplete">⚠️ <?php echo ucfirst($row['course_status']); ?></span></td>
+                            <td><?php echo htmlspecialchars($cust['id']); ?></td>
+                            <td><strong><?php echo htmlspecialchars($cust['name']); ?></strong></td>
+                            <td><?php echo htmlspecialchars($cust['email']); ?></td>
+                            <td><?php echo htmlspecialchars($cust['phone']); ?></td>
+                            <td><?php echo htmlspecialchars(substr($cust['address'], 0, 50)) . (strlen($cust['address']) > 50 ? '...' : ''); ?></td>
+                            <td><?php echo date('d M Y', strtotime($cust['created_at'])); ?></td>
+                            <td class="actions">
+                                <a href="add_customer.php?edit=<?php echo $cust['id']; ?>" class="btn-small">✏️ Edit</a>
+                                <a href="?delete=<?php echo $cust['id']; ?>" class="btn-small btn-danger" onclick="return confirm('Are you sure you want to delete this customer?')">🗑️ Delete</a>
+                            </td>
                         </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
-        <?php else: ?>
-            <div class="no-data">❌ No incomplete students found.</div>
         <?php endif; ?>
     </div>
 </main>
@@ -420,4 +482,3 @@ setInterval(updateClock, 1000);
 </script>
 </body>
 </html>
-<?php $conn->close(); ?>

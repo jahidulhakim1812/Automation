@@ -1,5 +1,5 @@
-<div class="side-nav" id="sidebar">
-    <a href="dashboard.php">📊 Dashboard</a>
+<aside class="sidebar" id="sidebar">
+    <a href="dashboard.php" class="active">📊 Dashboard</a>
 
     <div class="menu-group">
         <div class="menu-toggle">💵 Account ▾</div>
@@ -22,7 +22,13 @@
             <a href="ongoing_students.php">Ongoing</a>
         </div>
     </div>
-
+  <div class="menu-group">
+         
+               <div class="menu-toggle">👥 Customers ▾</div>
+        <div class="submenu horizontal-submenu">
+            <a href="add_customer.php">Add Customer</a>
+            <a href="customer_list.php">Customer List</a>
+        </div>
     <a href="delete.php">🗑️ Delete</a>
     <a href="report.php">📄 Report</a>
     <a href="bulk_email.php">✉️ Bulk Email</a>
@@ -43,6 +49,7 @@
         <div class="submenu horizontal-submenu">
             <a href="services.php">Manage Services</a>
             <a href="service_categories.php">Service Categories</a>
+            <a href="invoice_list.php">Invoice List</a>
         </div>
     </div>
 
@@ -77,3 +84,4 @@
     
     <a href="account_info.php">🕒 Account</a>
 </div>
+</aside>

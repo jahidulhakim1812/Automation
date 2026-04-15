@@ -1,13 +1,13 @@
 <?php
 session_start();
 
-// ✅ Admin session check
-if (!isset($_SESSION["email"]) || $_SESSION["role"] !== "Admin") {
+// Admin session check
+if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
     header("Location: login.php");
     exit();
 }
 
-// ✅ Load PHPMailer (for email notification)
+// Load PHPMailer (for email notification)
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -15,7 +15,7 @@ require 'PHPMailer/Exception.php';
 require 'PHPMailer/PHPMailer.php';
 require 'PHPMailer/SMTP.php';
 
-// ✅ Database connection
+// Database connection
 $servername = "localhost";
 $username   = "root";
 $password   = "";
@@ -26,11 +26,9 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// ====================================================
-// ⚙️ Function: sendUnblockEmail
-// ====================================================
+// Function: sendUnblockEmail
 function sendUnblockEmail($to_email, $student_name) {
-    // 🔴 USE YOUR GMAIL DETAILS HERE 🔴
+    // USE YOUR GMAIL DETAILS HERE
     $my_email    = 'artechsolution.online@gmail.com';
     $app_password = 'giwr wrcr mnyi lkpf'; // Your 16‑digit Google App Password
 
@@ -61,16 +59,14 @@ function sendUnblockEmail($to_email, $student_name) {
         $mail->send();
         return true;
     } catch (Exception $e) {
-        return false; // error: $mail->ErrorInfo
+        return false;
     }
 }
 
-// ====================================================
-// ✅ Handle Unblock Action
-// ====================================================
+// Handle Unblock Action
 $message = '';
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["unblock_student_id"])) {
-    $student_id = $_POST["unblock_student_id"];
+    $student_id = $conn->real_escape_string($_POST["unblock_student_id"]);
 
     // Fetch student details for email
     $info = $conn->query("SELECT name, email FROM students WHERE student_id = '$student_id'");
@@ -85,21 +81,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["unblock_student_id"]))
         // Send email notification (if email exists)
         if (!empty($student_email)) {
             if (sendUnblockEmail($student_email, $student_name)) {
-                $message = "<div class='status-msg success'>✅ Student unblocked and email sent successfully!</div>";
+                $message = "<div class='alert alert-success'>✅ Student unblocked and email sent successfully!</div>";
             } else {
-                $message = "<div class='status-msg warning'>⚠️ Student unblocked but email could not be sent. Check SMTP settings.</div>";
+                $message = "<div class='alert alert-warning'>⚠️ Student unblocked but email could not be sent. Check SMTP settings.</div>";
             }
         } else {
-            $message = "<div class='status-msg warning'>⚠️ Student unblocked, but no email address found.</div>";
+            $message = "<div class='alert alert-warning'>⚠️ Student unblocked, but no email address found.</div>";
         }
     } else {
-        $message = "<div class='status-msg error'>❌ Student not found.</div>";
+        $message = "<div class='alert alert-error'>❌ Student not found.</div>";
     }
 }
 
-// ====================================================
-// ✅ Fetch only blocked students (is_blocked = 1)
-// ====================================================
+// Fetch only blocked students (is_blocked = 1)
 $search_category = '';
 if (isset($_GET['category']) && !empty(trim($_GET['category']))) {
     $search_category = $conn->real_escape_string(trim($_GET['category']));
@@ -119,313 +113,432 @@ $result = $conn->query($sql);
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Blocked Students List</title>
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f9; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blocked Students — AR TECH SOLUTION</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: rgba(8,12,24,0.82);
+    --glass: rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.13);
+    --glass-hover: rgba(255,255,255,0.13);
+    --accent: #00e5c8;
+    --accent2: #7b5ea7;
+    --accent3: #ff6b6b;
+    --accent4: #ffd166;
+    --accent5: #06d6a0;
+    --text: #e8eaf0;
+    --muted: rgba(200,210,230,0.55);
+    --card-radius: 18px;
+    --sans: 'Plus Jakarta Sans', sans-serif;
+    --mono: 'Space Grotesk', sans-serif;
+    --nav-h: 64px;
+    --sidebar-w: 230px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
 
-        /* Header/Navbar */
-        .navbar {
-            background-color: #1a1a1a;
-            color: white;
-            padding: 15px 30px;
-            font-size: 22px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        .logout-btn {
-            position: absolute;
-            right: 80px;
-            background: linear-gradient(135deg, #ff4d4d, #cc0000);
-            color: white;
-            padding: 8px 15px;
-            text-decoration: none;
-            border-radius: 25px;
-            font-size: 15px;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-        }
-        .logout-btn:hover {
-            background: linear-gradient(135deg, #ff6666, #e60000);
-            transform: scale(1.05);
-        }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* Side Navigation */
-        .side-nav {
-            position: fixed;
-            top: 60px;
-            left: 0;
-            width: 220px;
-            height: calc(100% - 60px);
-            background-color: #2c3e50;
-            padding-top: 20px;
-            z-index: 999;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-        }
-        .side-nav.collapsed { transform: translateX(-220px); }
-        .side-nav a, .menu-toggle {
-            color: white;
-            text-decoration: none;
-            padding: 12px 25px;
-            width: 100%;
-            font-weight: bold;
-            transition: background 0.3s ease;
-            border-left: 4px solid transparent;
-            cursor: pointer;
-        }
-        .side-nav a:hover, .menu-toggle:hover { background-color: #34495e; border-left: 4px solid #1abc9c; }
-        .menu-group { width: 100%; }
-        .submenu { display: none; flex-direction: column; background-color: #34495e; }
-        .submenu a { color: white; padding: 10px 40px; font-weight: normal; transition: background 0.3s ease; }
-        .submenu a:hover { background-color: #3d566e; }
-        .menu-group.active .submenu { display: flex; }
+body {
+    font-family: var(--sans);
+    color: var(--text);
+    min-height: 100vh;
+    background: url('uploads/banner.jpg') no-repeat center center fixed;
+    background-size: cover;
+    overflow-x: hidden;
+}
 
-        /* Toggle Button */
-        .toggle-arrow {
-            position: fixed;
-            top: 70px;
-            left: 220px;
-            background-color: #1abc9c;
-            color: white;
-            padding: 6px 10px;
-            border-radius: 0 5px 5px 0;
-            cursor: pointer;
-            z-index: 1001;
-            font-size: 18px;
-            transition: left 0.3s ease;
-        }
-        .toggle-arrow.collapsed { left: 0; }
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg,rgba(8,10,30,0.88) 0%,rgba(15,20,50,0.78) 50%,rgba(5,15,35,0.85) 100%);
+    z-index: 0;
+    pointer-events: none;
+}
 
-        /* Main Content */
-        .container {
-            margin-left: 240px;
-            padding: 130px 30px 100px;
-            transition: margin-left 0.3s ease;
-        }
-        .container.collapsed { margin-left: 30px; }
+/* TOP NAV */
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+    background: rgba(8,10,28,0.85);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    z-index: 1100;
+}
+.topnav-brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 18px; font-weight: 700;
+    letter-spacing: 0.5px; color: #fff;
+}
+.topnav-brand span { color: var(--accent); }
+.brand-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+.topnav-right { display: flex; align-items: center; gap: 14px; }
+.topnav-time { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.logout-btn {
+    background: linear-gradient(135deg,#e74c3c,#c0392b);
+    color: #fff; padding: 7px 20px; border-radius: 40px;
+    text-decoration: none; font-size: 13px; font-weight: 700;
+    transition: opacity .2s; border: none; cursor: pointer;
+}
+.logout-btn:hover { opacity: .85; }
+.hamburger {
+    background: none; border: none; color: var(--text);
+    font-size: 22px; cursor: pointer; display: none; padding: 4px;
+}
 
-        h2 { text-align: center; margin-bottom: 20px; }
+/* SIDEBAR */
+.sidebar {
+    position: fixed; top: var(--nav-h); left: 0;
+    width: var(--sidebar-w); height: calc(100vh - var(--nav-h));
+    background: #08121e;
+    border-right: 1px solid var(--glass-border);
+    overflow-y: auto; overflow-x: hidden;
+    z-index: 1050;
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    padding-bottom: 40px;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
+.sidebar.collapsed { transform: translateX(-100%); }
+.sidebar a, .menu-toggle {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--muted); text-decoration: none;
+    padding: 11px 20px; font-size: 13.5px; font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all .2s; cursor: pointer; user-select: none;
+    white-space: nowrap;
+}
+.sidebar a:hover, .menu-toggle:hover { color: #fff; background: var(--glass); border-left-color: var(--accent); }
+.sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,200,0.07); }
+.submenu { display: none; flex-direction: column; background: rgba(0,0,0,0.2); }
+.submenu a { padding: 9px 20px 9px 38px; font-size: 13px; }
+.menu-group.open .submenu { display: flex; }
+.menu-arrow { margin-left: auto; font-size: 11px; transition: transform .25s; }
+.menu-group.open .menu-arrow { transform: rotate(180deg); }
+.sidebar-divider { height: 1px; background: var(--glass-border); margin: 10px 16px; }
 
-        /* Status Message */
-        .status-msg { padding: 15px; margin: 20px 0; border-radius: 5px; font-weight: bold; }
-        .status-msg.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .status-msg.warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .status-msg.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+/* SIDEBAR TOGGLE PILL */
+.sidebar-toggle-pill {
+    position: fixed; top: calc(var(--nav-h) + 16px); left: var(--sidebar-w);
+    width: 24px; height: 44px; background: var(--accent);
+    border-radius: 0 10px 10px 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 1060; font-size: 13px; color: #000;
+    font-weight: 900; transition: left .3s cubic-bezier(.4,0,.2,1), background .2s;
+}
+.sidebar-toggle-pill:hover { background: #00c9b0; }
+.sidebar-toggle-pill.collapsed { left: 0; }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            background: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 12px;
-            text-align: center;
-        }
-        th {
-            background: #e74c3c; /* red theme for blocked page */
-            color: #fff;
-        }
-        tr:nth-child(even) { background: #f9f9f9; }
+/* MAIN CONTENT */
+.main {
+    margin-left: var(--sidebar-w);
+    padding: calc(var(--nav-h) + 24px) 24px 80px;
+    position: relative; z-index: 1;
+    transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+    min-height: 100vh;
+}
+.main.collapsed { margin-left: 0; }
 
-        .search-form {
-            text-align: center;
-            margin: 20px 0;
-        }
-        .search-input {
-            padding: 8px;
-            width: 200px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-        }
-        .search-button {
-            padding: 8px 12px;
-            border: none;
-            background: #3498db;
-            color: #fff;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .search-button:hover { background: #2980b9; }
+/* SECTION TITLE */
+.section-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px; color: var(--accent);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
 
-        .unblock-btn {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .unblock-btn:hover { background: #219150; }
+/* SEARCH CARD */
+.search-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    padding: 20px;
+    margin-bottom: 28px;
+    display: flex;
+    justify-content: center;
+}
+.search-card form {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 500px;
+}
+.search-card input {
+    flex: 1;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+}
+.search-card input:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.12);
+}
+.search-card button {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, var(--accent), #00c9b0);
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .2s;
+}
+.search-card button:hover { opacity: .85; }
 
-        /* Footer */
-        .footer {
-            background-color: #1a1a1a;
-            color: white;
-            text-align: center;
-            padding: 15px;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            font-weight: bold;
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
-        }
-    </style>
+/* TABLE CARD */
+.table-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    padding: 20px;
+    overflow-x: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+th, td {
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--glass-border);
+}
+th {
+    background: rgba(0,0,0,0.3);
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 11px;
+}
+td {
+    color: var(--text);
+}
+tr:hover td {
+    background: rgba(255,255,255,0.03);
+}
+.status-blocked {
+    color: var(--accent3);
+    font-weight: 700;
+}
+.unblock-btn {
+    background: linear-gradient(135deg, #27ae60, #219150);
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: opacity .2s;
+}
+.unblock-btn:hover { opacity: .85; }
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+/* ALERTS */
+.alert {
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+.alert-success {
+    background: rgba(6,214,160,0.15);
+    border: 1px solid var(--accent5);
+    color: var(--accent5);
+}
+.alert-warning {
+    background: rgba(255,209,102,0.15);
+    border: 1px solid var(--accent4);
+    color: var(--accent4);
+}
+.alert-error {
+    background: rgba(255,107,107,0.15);
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+}
+
+/* FOOTER */
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(6,8,20,0.9);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--glass-border);
+    text-align: center;
+    padding: 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+    z-index: 900;
+}
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .sidebar-toggle-pill { display: none; }
+    .hamburger { display: block; }
+    .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
+    .search-card form { flex-direction: column; }
+    .search-card button { width: 100%; }
+    th, td { padding: 8px 6px; font-size: 11px; }
+}
+</style>
 </head>
 <body>
 
-<!-- Header/Navbar -->
-<div class="navbar">
-    <strong>AR TECH SOLUTION</strong>
-    <a href="logout.php" class="logout-btn">Logout</a>
-</div>
-
-<!-- Side Navigation (same as your other pages) -->
-<div class="side-nav" id="sidebar">
-    <a href="dashboard.php">📊 Dashboard</a>
-
-    <div class="menu-group">
-        <div class="menu-toggle">💵 Account ▾</div>
-        <div class="submenu">
-            <a href="account.php">Account Overview</a>
-            <a href="account_report.php">Account Report</a>
-            <a href="change_password.php">Change Password</a>
+<!-- TOP NAVIGATION -->
+<nav class="topnav">
+    <div style="display:flex;align-items:center;gap:14px;">
+        <button class="hamburger" id="hamburgerBtn">☰</button>
+        <div class="topnav-brand">
+            <div class="brand-dot"></div>
+            <span>AR TECH</span> SOLUTION
         </div>
     </div>
-
-    <div class="menu-group">
-        <div class="menu-toggle">👤 Student Information ▾</div>
-        <div class="submenu">
-            <a href="insert.php">Add Student</a>
-            <a href="student_list.php">Total Student List</a>
-            <a href="form_view.php">Student Form</a>
-            <a href="completed_students.php">Completed Students</a>
-            <a href="incomplete_students.php">Incomplete Students</a>
-            <a href="ongoing_students.php">Ongoing Students</a>
-            <a href="blocked_students_list.php" style="background:#c0392b;">🚫 Blocked Students</a> <!-- current page -->
-        </div>
+    <div class="topnav-right">
+        <div class="topnav-time" id="liveClock"></div>
+        <a href="logout.php" class="logout-btn">Logout</a>
     </div>
+</nav>
 
-    <a href="delete.php">🗑️ Delete</a>
-    <a href="report.php">📄 Report</a>
+<!-- SIDEBAR (modern dashboard) -->
+<?php
+include 'navigation.php';
+?>
+    
 
-    <div class="menu-group">
-        <div class="menu-toggle">💵 Payment ▾</div>
-        <div class="submenu">
-            <a href="invoice.php">Print Invoice</a>
-            <a href="view_invoice.php">Verify Invoice</a>
-            <a href="input_payment.php">Add Payment</a>
-        </div>
-    </div>
+<div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
-    <div class="menu-group">
-        <div class="menu-toggle">📆 Attendance ▾</div>
-        <div class="submenu">
-            <a href="attendance.php">Take Attendance</a>
-            <a href="attendance_report.php">View Attendance Report</a>
-        </div>
-    </div>
+<!-- MAIN CONTENT -->
+<main class="main" id="mainContent">
+    <div class="section-title">🚫 Blocked Students</div>
 
-    <div class="menu-group">
-        <div class="menu-toggle">📜 Certificate ▾</div>
-        <div class="submenu">
-            <a href="upload_certificate.php">Upload Certificate</a>
-            <a href="certificate_list.php">View Certificate</a>
-        </div>
-    </div>
-    <a href="routine_generator.php">🕒 Routine</a>
-</div>
+    <?php if (!empty($message)) echo $message; ?>
 
-<!-- Toggle Button -->
-<div class="toggle-arrow" id="toggleBtn">◀</div>
-
-<!-- Main Content -->
-<div class="container" id="mainContent">
-    <h2>🚫 Blocked Students List</h2>
-
-    <?= $message ?? '' ?>
-
-    <!-- Search by Category -->
-    <div class="search-form">
-        <form method="get" action="">
-            <input type="text" name="category" class="search-input" placeholder="Filter by Course Category" value="<?= htmlspecialchars($search_category) ?>">
-            <button type="submit" class="search-button">Search</button>
+    <!-- Search Card -->
+    <div class="search-card">
+        <form method="GET" action="">
+            <input type="text" name="category" placeholder="Filter by Course Category" value="<?php echo htmlspecialchars($search_category); ?>">
+            <button type="submit">🔍 Search</button>
+            <?php if ($search_category): ?>
+                <a href="blocked_students_list.php" style="padding:12px 24px; background:linear-gradient(135deg, #ff6b6b, #c0392b); border-radius:12px; text-decoration:none; color:white; font-weight:700;">Clear</a>
+            <?php endif; ?>
         </form>
     </div>
 
-    <!-- Students Table -->
-    <?php if ($result && $result->num_rows > 0): ?>
-        <table>
-            <tr>
-                <th>Student ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Course Category</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-            <?php while($row = $result->fetch_assoc()): ?>
-            <tr>
-                <td><?= htmlspecialchars($row['student_id']) ?></td>
-                <td><?= htmlspecialchars($row['name']) ?></td>
-                <td><?= htmlspecialchars($row['email']) ?></td>
-                <td><?= htmlspecialchars($row['phone_number']) ?></td>
-                <td><?= htmlspecialchars($row['course_category']) ?></td>
-                <td><span style="color:red; font-weight:bold;">Blocked</span></td>
-                <td>
-                    <form method="POST" onsubmit="return confirm('Are you sure you want to unblock this student? An email notification will be sent.');">
-                        <input type="hidden" name="unblock_student_id" value="<?= $row['student_id'] ?>">
-                        <button type="submit" class="unblock-btn">🔓 Unblock</button>
-                    </form>
-                </td>
-            </tr>
-            <?php endwhile; ?>
-        </table>
-    <?php else: ?>
-        <p style="text-align:center; color:#555;">✅ No blocked students found.</p>
-    <?php endif; ?>
-</div>
+    <!-- Table Card -->
+    <div class="table-card">
+        <?php if ($result && $result->num_rows > 0): ?>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Course Category</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($row['student_id']); ?></td>
+                            <td><?php echo htmlspecialchars($row['name']); ?></td>
+                            <td><?php echo htmlspecialchars($row['email']); ?></td>
+                            <td><?php echo htmlspecialchars($row['phone_number']); ?></td>
+                            <td><?php echo htmlspecialchars($row['course_category']); ?></td>
+                            <td><span class="status-blocked">🔴 Blocked</span></td>
+                            <td>
+                                <form method="POST" onsubmit="return confirm('Are you sure you want to unblock this student? An email notification will be sent.');">
+                                    <input type="hidden" name="unblock_student_id" value="<?php echo $row['student_id']; ?>">
+                                    <button type="submit" class="unblock-btn">🔓 Unblock</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="no-data">✅ No blocked students found.</div>
+        <?php endif; ?>
+    </div>
+</main>
 
-<!-- Footer -->
 <div class="footer">
-    &copy; <?php echo date("Y"); ?> Freelancing Students Management System | All Rights Reserved
+    &copy; <?php echo date("Y"); ?> AR TECH SOLUTION — Freelancing Student Management System
 </div>
 
 <script>
-  const sidebar = document.getElementById('sidebar');
-  const toggleBtn = document.getElementById('toggleBtn');
-  const mainContent = document.getElementById('mainContent');
+// Sidebar toggle (desktop)
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('sidebarToggle');
+const mainContent = document.getElementById('mainContent');
 
-  toggleBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('collapsed');
-    toggleBtn.classList.toggle('collapsed');
-    mainContent.classList.toggle('collapsed');
-    toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
-  });
-
-  document.querySelectorAll('.menu-toggle').forEach(toggle => {
-    toggle.addEventListener('click', () => {
-      toggle.parentElement.classList.toggle('active');
+if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        toggleBtn.classList.toggle('collapsed');
+        mainContent.classList.toggle('collapsed');
+        toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
     });
-  });
-</script>
+}
 
+// Hamburger (mobile)
+const hamburger = document.getElementById('hamburgerBtn');
+if (hamburger) {
+    hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('mobile-open');
+    });
+}
+
+// Submenu toggles
+document.querySelectorAll('.menu-toggle').forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = toggle.closest('.menu-group');
+        if (group) group.classList.toggle('open');
+    });
+});
+
+// Live clock
+function updateClock() {
+    const clockEl = document.getElementById('liveClock');
+    if (clockEl) {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    }
+}
+updateClock();
+setInterval(updateClock, 1000);
+</script>
 </body>
 </html>
