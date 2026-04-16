@@ -1,5 +1,10 @@
 <?php
 session_start();
+if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
+    header("Location: login.php");
+    exit();
+}
+
 $conn = new mysqli("localhost", "root", "", "freelancing");
 if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
@@ -36,445 +41,447 @@ if (!empty($student_id)) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Routine Report - AR TECH SOLUTION</title>
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Routine Form — AR TECH SOLUTION</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: rgba(8,12,24,0.82);
+    --glass: rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.13);
+    --glass-hover: rgba(255,255,255,0.13);
+    --accent: #00e5c8;
+    --accent2: #7b5ea7;
+    --accent3: #ff6b6b;
+    --accent4: #ffd166;
+    --accent5: #06d6a0;
+    --text: #e8eaf0;
+    --muted: rgba(200,210,230,0.55);
+    --card-radius: 18px;
+    --sans: 'Plus Jakarta Sans', sans-serif;
+    --mono: 'Space Grotesk', sans-serif;
+    --nav-h: 64px;
+    --sidebar-w: 230px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
 
-        /* ========== NAVBAR (no logo, only brand center and logout) ========== */
-        .navbar {
-            background: linear-gradient(135deg, #1e2a3a, #0f1722);
-            color: white;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
-            padding: 0 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .brand {
-            font-size: 22px;
-            font-weight: bold;
-        }
-        .logout-btn {
-            position: absolute;
-            right: 20px;
-            background: #e74c3c;
-            color: white;
-            padding: 6px 18px;
-            border-radius: 30px;
-            text-decoration: none;
-            transition: 0.2s;
-        }
-        .logout-btn:hover { background: #c0392b; transform: scale(1.02); }
-        @media (max-width: 700px) {
-            .brand { font-size: 16px; }
-        }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* ========== SIDEBAR (identical to dashboard) ========== */
-        .side-nav {
-            position: fixed;
-            top: 60px;
-            left: 0;
-            width: 220px;
-            height: calc(100% - 60px);
-            background-color: #2c3e50;
-            padding-top: 20px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-        }
-        .side-nav.collapsed {
-            transform: translateX(-100%);
-        }
-        .side-nav a, .menu-toggle {
-            color: white;
-            text-decoration: none;
-            padding: 12px 25px;
-            width: 100%;
-            font-weight: bold;
-            transition: background 0.3s ease;
-            border-left: 4px solid transparent;
-            cursor: pointer;
-        }
-        .side-nav a:hover, .menu-toggle:hover {
-            background-color: #34495e;
-            border-left: 4px solid #1abc9c;
-        }
-        .menu-group { width: 100%; }
-        .submenu {
-            display: none;
-            flex-direction: column;
-            background-color: #34495e;
-        }
-        .submenu a {
-            color: white;
-            padding: 10px 40px;
-            text-decoration: none;
-            font-weight: normal;
-            transition: background 0.3s ease;
-        }
-        .submenu a:hover { background-color: #3d566e; }
-        .menu-group.active .submenu { display: flex; }
+body {
+    font-family: var(--sans);
+    color: var(--text);
+    min-height: 100vh;
+    background: url('uploads/banner.jpg') no-repeat center center fixed;
+    background-size: cover;
+    overflow-x: hidden;
+}
 
-        /* Toggle button */
-        .toggle-arrow {
-            position: fixed;
-            top: 70px;
-            left: 220px;
-            background-color: #1abc9c;
-            color: white;
-            padding: 6px 10px;
-            border-radius: 0 5px 5px 0;
-            cursor: pointer;
-            z-index: 1001;
-            font-size: 18px;
-            transition: left 0.3s ease;
-        }
-        .toggle-arrow.collapsed { left: 0; }
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg,rgba(8,10,30,0.88) 0%,rgba(15,20,50,0.78) 50%,rgba(5,15,35,0.85) 100%);
+    z-index: 0;
+    pointer-events: none;
+}
 
-        /* ========== MAIN CONTAINER ========== */
-        .container {
-            margin-left: 240px;
-            padding: 80px 30px 60px;
-            transition: margin-left 0.3s ease;
-        }
-        .container.collapsed { margin-left: 20px; }
+/* TOP NAV */
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+    background: rgba(8,10,28,0.85);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    z-index: 1100;
+}
+.topnav-brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 18px; font-weight: 700;
+    letter-spacing: 0.5px; color: #fff;
+}
+.topnav-brand span { color: var(--accent); }
+.brand-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+.topnav-right { display: flex; align-items: center; gap: 14px; }
+.topnav-time { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.logout-btn {
+    background: linear-gradient(135deg,#e74c3c,#c0392b);
+    color: #fff; padding: 7px 20px; border-radius: 40px;
+    text-decoration: none; font-size: 13px; font-weight: 700;
+    transition: opacity .2s; border: none; cursor: pointer;
+}
+.logout-btn:hover { opacity: .85; }
+.hamburger {
+    background: none; border: none; color: var(--text);
+    font-size: 22px; cursor: pointer; display: none; padding: 4px;
+}
 
-        /* Report card */
-        .report-card {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            padding: 25px 30px;
-        }
+/* SIDEBAR */
+.sidebar {
+    position: fixed; top: var(--nav-h); left: 0;
+    width: var(--sidebar-w); height: calc(100vh - var(--nav-h));
+    background: #08121e;
+    border-right: 1px solid var(--glass-border);
+    overflow-y: auto; overflow-x: hidden;
+    z-index: 1050;
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    padding-bottom: 40px;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
+.sidebar.collapsed { transform: translateX(-100%); }
+.sidebar a, .menu-toggle {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--muted); text-decoration: none;
+    padding: 11px 20px; font-size: 13.5px; font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all .2s; cursor: pointer; user-select: none;
+    white-space: nowrap;
+}
+.sidebar a:hover, .menu-toggle:hover { color: #fff; background: var(--glass); border-left-color: var(--accent); }
+.sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,200,0.07); }
+.submenu { display: none; flex-direction: column; background: rgba(0,0,0,0.2); }
+.submenu a { padding: 9px 20px 9px 38px; font-size: 13px; }
+.menu-group.open .submenu { display: flex; }
+.menu-arrow { margin-left: auto; font-size: 11px; transition: transform .25s; }
+.menu-group.open .menu-arrow { transform: rotate(180deg); }
+.sidebar-divider { height: 1px; background: var(--glass-border); margin: 10px 16px; }
 
-        /* ===== REPORT HEADER with logo on left ===== */
-        .report-header {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #1abc9c;
-            flex-wrap: wrap;
-        }
-        .header-logo img {
-            height: 70px;
-            width: auto;
-            max-width: 120px;
-            object-fit: contain;
-        }
-        .header-text {
-            flex: 1;
-            text-align: center;
-        }
-        .institute-name {
-            font-size: 28px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .address, .contact {
-            font-size: 14px;
-            color: #555;
-            margin-top: 5px;
-        }
-        @media (max-width: 600px) {
-            .report-header {
-                flex-direction: column;
-                text-align: center;
-            }
-            .header-text {
-                text-align: center;
-            }
-        }
+/* SIDEBAR TOGGLE PILL */
+.sidebar-toggle-pill {
+    position: fixed; top: calc(var(--nav-h) + 16px); left: var(--sidebar-w);
+    width: 24px; height: 44px; background: var(--accent);
+    border-radius: 0 10px 10px 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 1060; font-size: 13px; color: #000;
+    font-weight: 900; transition: left .3s cubic-bezier(.4,0,.2,1), background .2s;
+}
+.sidebar-toggle-pill:hover { background: #00c9b0; }
+.sidebar-toggle-pill.collapsed { left: 0; }
 
-        /* Search box, student info, table */
-        .search-box {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            text-align: center;
-            border: 1px solid #dee2e6;
-        }
-        .search-form {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .search-form input {
-            padding: 10px 15px;
-            width: 250px;
-            border-radius: 30px;
-            border: 1px solid #ccc;
-        }
-        .search-form button {
-            background: #1abc9c;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 30px;
-            cursor: pointer;
-        }
-        .error-msg {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 15px;
-        }
-        .student-info {
-            background: #f1f3f5;
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .student-info p { margin: 5px 0; }
-        .student-info strong { display: inline-block; width: 100px; }
-        .routine-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        .routine-table th, .routine-table td {
-            border: 1px solid #212529;
-            padding: 10px;
-            text-align: left;
-        }
-        .routine-table th {
-            background: #2c3e50;
-            color: white;
-        }
-        .routine-table tr:nth-child(even) { background: #f8f9fa; }
-        .note {
-            margin-top: 20px;
-            font-style: italic;
-            font-size: 13px;
-            border-top: 1px dashed #adb5bd;
-            padding-top: 15px;
-        }
-        .signature {
-            margin-top: 30px;
-            text-align: right;
-            font-weight: bold;
-        }
-        .signature span {
-            display: block;
-            font-weight: normal;
-            margin-top: 5px;
-        }
-        .print-btn {
-            text-align: center;
-            margin-top: 25px;
-        }
-        .print-btn button {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 25px;
-            border-radius: 30px;
-            cursor: pointer;
-        }
-        .footer {
-            background: #1a1a1a;
-            color: white;
-            text-align: center;
-            padding: 12px;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            font-size: 14px;
-            z-index: 999;
-        }
+/* MAIN CONTENT */
+.main {
+    margin-left: var(--sidebar-w);
+    padding: calc(var(--nav-h) + 24px) 24px 80px;
+    position: relative; z-index: 1;
+    transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}
+.main.collapsed { margin-left: 0; }
 
-        /* Print styles */
-        @media print {
-            .navbar, .side-nav, .toggle-arrow, .footer, .search-box, .print-btn {
-                display: none !important;
-            }
-            .container {
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            .report-card {
-                box-shadow: none;
-                padding: 0;
-                margin: 0;
-                max-width: 100%;
-            }
-            .report-header {
-                border-bottom: 1px solid #000;
-            }
-            .header-logo img {
-                height: 50px;
-            }
-            .institute-name {
-                font-size: 20pt;
-            }
-            .routine-table th {
-                background: #eee !important;
-                color: black;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            @page {
-                size: A4;
-                margin: 1.5cm;
-            }
-        }
-        @media (max-width: 768px) {
-            .container {
-                margin-left: 0;
-                padding: 70px 15px 50px;
-            }
-            .side-nav {
-                transform: translateX(-100%);
-            }
-            .toggle-arrow {
-                left: 0;
-            }
-        }
-    </style>
+/* REPORT CARD */
+.report-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    padding: 28px;
+    max-width: 1000px;
+    width: 100%;
+    animation: fadeInUp 0.5s ease;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* REPORT HEADER with logo */
+.report-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--accent);
+    flex-wrap: wrap;
+}
+.header-logo img {
+    height: 70px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+}
+.header-text {
+    flex: 1;
+    text-align: center;
+}
+.institute-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--accent);
+}
+.address, .contact {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+}
+
+/* SEARCH CARD */
+.search-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+.search-card h3 {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 16px;
+}
+.search-form {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.search-form input {
+    padding: 10px 16px;
+    width: 250px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 30px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+}
+.search-form input:focus {
+    border-color: var(--accent);
+}
+.search-form button {
+    background: linear-gradient(135deg, var(--accent), #00c9b0);
+    border: none;
+    padding: 10px 24px;
+    border-radius: 30px;
+    color: #000;
+    font-weight: 700;
+    cursor: pointer;
+}
+.error-msg {
+    background: rgba(255,107,107,0.15);
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+.student-info {
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+}
+.student-info p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+.student-info strong {
+    color: var(--accent);
+    display: inline-block;
+    width: 110px;
+}
+.routine-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+.routine-table th, .routine-table td {
+    border: 1px solid var(--glass-border);
+    padding: 10px;
+    text-align: left;
+}
+.routine-table th {
+    background: rgba(0,0,0,0.3);
+    color: var(--accent);
+    font-weight: 600;
+}
+.routine-table td {
+    color: var(--text);
+}
+.note {
+    margin-top: 20px;
+    font-size: 12px;
+    font-style: italic;
+    border-top: 1px dashed var(--glass-border);
+    padding-top: 12px;
+    color: var(--muted);
+}
+.signature {
+    margin-top: 30px;
+    text-align: right;
+    font-weight: bold;
+    color: var(--accent);
+}
+.signature span {
+    display: block;
+    font-weight: normal;
+    margin-top: 5px;
+    color: var(--muted);
+}
+.print-btn {
+    text-align: center;
+    margin-top: 25px;
+}
+.print-btn button {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+/* FOOTER */
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(6,8,20,0.9);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--glass-border);
+    text-align: center;
+    padding: 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+    z-index: 900;
+}
+
+/* PRINT STYLES (A4) */
+@media print {
+    .topnav, .sidebar, .sidebar-toggle-pill, .search-card, .print-btn, .footer {
+        display: none !important;
+    }
+    .main {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white;
+    }
+    .report-card {
+        background: white;
+        backdrop-filter: none;
+        border: none;
+        padding: 0;
+        box-shadow: none;
+        color: black;
+    }
+    .report-header {
+        border-bottom: 1px solid #000;
+    }
+    .institute-name {
+        color: #1abc9c;
+    }
+    .routine-table th {
+        background: #ddd !important;
+        color: black;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .routine-table td {
+        color: black;
+    }
+    .student-info p, .note, .signature span {
+        color: #333;
+    }
+    @page {
+        size: A4;
+        margin: 1.5cm;
+    }
+}
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .sidebar-toggle-pill { display: none; }
+    .hamburger { display: block; }
+    .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
+    .report-header { flex-direction: column; text-align: center; }
+    .search-form { flex-direction: column; align-items: stretch; }
+    .search-form button { width: 100%; }
+    .routine-table th, .routine-table td { padding: 8px 4px; font-size: 12px; }
+}
+</style>
 </head>
 <body>
 
-<!-- ========== TOP NAVBAR (no logo, only brand centered + logout) ========== -->
-<div class="navbar">
-    <div class="brand">AR TECH SOLUTION</div>
-    <a href="logout.php" class="logout-btn">Logout</a>
-</div>
+<!-- TOP NAVIGATION -->
+<nav class="topnav">
+    <div style="display:flex;align-items:center;gap:14px;">
+        <button class="hamburger" id="hamburgerBtn">☰</button>
+        <div class="topnav-brand">
+            <div class="brand-dot"></div>
+            <span>AR TECH</span> SOLUTION
+        </div>
+    </div>
+    <div class="topnav-right">
+        <div class="topnav-time" id="liveClock"></div>
+        <a href="logout.php" class="logout-btn">Logout</a>
+    </div>
+</nav>
 
-<!-- ========== SIDEBAR (identical to dashboard) ========== -->
-<div class="side-nav" id="sidebar">
-    <a href="dashboard.php">📊 Dashboard</a>
-    <div class="menu-group">
-        <div class="menu-toggle">💵 Account ▾</div>
-        <div class="submenu">
-            <a href="account.php">Account Overview</a>
-            <a href="account_report.php">Account Report</a>
-            <a href="change_password.php">Change Password</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">👤 Student Information ▾</div>
-        <div class="submenu">
-            <a href="insert.php">Add Student</a>
-            <a href="student_list.php">Total Student List</a>
-            <a href="form_view.php">Student Form</a>
-            <a href="completed_students.php">Course Complete</a>
-            <a href="incomplete_students.php">Course Incomplete</a>
-            <a href="blocked_students_list.php">Blocked student List</a>
-            <a href="ongoing_students.php">Ongoing</a>
-        </div>
-    </div>
-    <a href="delete.php">🗑️ Delete</a>
-    <a href="report.php">📄 Report</a>
-    <a href="bulk_email.php">✉️ Bulk Email</a>
-    <div class="menu-group">
-        <div class="menu-toggle">💵 Payment ▾</div>
-        <div class="submenu">
-            <a href="invoice.php">Print Invoice</a>
-            <a href="view_invoice.php">Verify Invoice</a>
-            <a href="input_payment.php">Add Payment</a>
-            <a href="payment_due.php">Due Payment List</a>
-            <a href="whatsapp_due.php">Send Whatsapp Message</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">🛠️ Services ▾</div>
-        <div class="submenu">
-            <a href="services.php">Manage Services</a>
-            <a href="service_categories.php">Service Categories</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">📆 Attendance ▾</div>
-        <div class="submenu">
-            <a href="attendance.php">Take Attendance</a>
-            <a href="attendance_report.php">View attendance Report</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">📜 Certificate ▾</div>
-        <div class="submenu">
-            <a href="upload_certificate.php">Upload Certificate</a>
-            <a href="certificate_list.php">View Certificate</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">🎬 Video ▾</div>
-        <div class="submenu">
-            <a href="upload_video.php">Upload Video</a>
-            <a href="view_videos.php">View Videos</a>
-        </div>
-    </div>
-    <a href="routine_generator.php">🕒 Routine</a>
-    <a href="rutine_form.php">🕒 Routine Form</a>
-    <a href="account_info.php">🕒 Account</a>
-</div>
+<!-- SIDEBAR (modern dashboard) -->
+<?php
+include 'navigation.php';
+?>
 
-<div class="toggle-arrow" id="toggleBtn">◀</div>
+<div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
-<!-- ========== MAIN CONTENT ========== -->
-<div class="container" id="mainContent">
+<!-- MAIN CONTENT -->
+<main class="main" id="mainContent">
     <div class="report-card">
-        <!-- Report header with logo on left -->
+        <!-- Report header with logo -->
         <div class="report-header">
             <div class="header-logo">
                 <img src="uploads/logo.png" alt="Institute Logo" onerror="this.style.display='none'">
             </div>
             <div class="header-text">
                 <div class="institute-name">AR TECH SOLUTION</div>
-                <div class="address">Address:South Khailkur,Shahid Siddique road ,Boardbazar, Gazipur-1704.</div>
+                <div class="address">Address: South Khailkur, Shahid Siddique road, Boardbazar, Gazipur-1704.</div>
                 <div class="contact">📞 Mobile: +880 1957-288638 | ✉️ artechsolution.online@gmail.com</div>
             </div>
         </div>
 
         <!-- Search box (screen only) -->
-        <div class="search-box">
+        <div class="search-card">
             <h3>🔍 Search Student Routine by ID</h3>
             <form method="GET" class="search-form">
-                <input type="text" name="student_id" placeholder="Enter Student ID (e.g., 250803)" value="<?= htmlspecialchars($student_id) ?>" required>
+                <input type="text" name="student_id" placeholder="Enter Student ID (e.g., 250803)" value="<?php echo htmlspecialchars($student_id); ?>" required>
                 <button type="submit">Load Routine</button>
             </form>
             <?php if ($error_message): ?>
-                <div class="error-msg">❌ <?= $error_message ?></div>
+                <div class="error-msg">❌ <?php echo htmlspecialchars($error_message); ?></div>
             <?php endif; ?>
         </div>
 
         <?php if (!empty($student_id) && $student): ?>
             <div class="student-info">
-                <p><strong>Student Name:</strong> <?= htmlspecialchars($student['name']) ?></p>
-                <p><strong>ID :</strong> <?= htmlspecialchars($student['student_id']) ?></p>
-                <p><strong>Course :</strong> <?= htmlspecialchars($student['course_category']) ?></p>
+                <p><strong>Student Name:</strong> <?php echo htmlspecialchars($student['name']); ?></p>
+                <p><strong>ID :</strong> <?php echo htmlspecialchars($student['student_id']); ?></p>
+                <p><strong>Course :</strong> <?php echo htmlspecialchars($student['course_category']); ?></p>
             </div>
 
-            <h3 style="text-align:center;">📖 Class Routine</h3>
-            <table class="routine-table">
-                <thead><tr><th>Day</th><th>Time</th></tr></thead>
-                <tbody>
-                    <?php foreach (['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'] as $day): ?>
-                        <tr>
-                            <td><?= $day ?></td>
-                            <td><?= htmlspecialchars($routine_data[$day] ?? 'Close') ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <h3 style="text-align:center; color:var(--accent); margin-bottom:16px;">📖 Class Routine</h3>
+            <div style="overflow-x:auto;">
+                <table class="routine-table">
+                    <thead><tr><th>Day</th><th>Time</th></tr></thead>
+                    <tbody>
+                        <?php foreach (['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'] as $day): ?>
+                            <tr>
+                                <td><?php echo $day; ?></td>
+                                <td><?php echo htmlspecialchars($routine_data[$day] ?? 'Close'); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
 
             <div class="note">
                 This Routine can be changed if any emergency occurs. Students must have to follow this routine. 
@@ -492,29 +499,55 @@ if (!empty($student_id)) {
             <div class="error-msg">❌ Student ID not found. Please try again.</div>
         <?php endif; ?>
     </div>
-</div>
+</main>
 
 <div class="footer">
-    &copy; <?= date("Y") ?> Freelancing Student Management System | All Rights Reserved
+    &copy; <?php echo date("Y"); ?> AR TECH SOLUTION — Freelancing Student Management System
 </div>
 
 <script>
-    // Sidebar toggle
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('toggleBtn');
-    const mainContent = document.getElementById('mainContent');
+// Sidebar toggle (desktop)
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('sidebarToggle');
+const mainContent = document.getElementById('mainContent');
+if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
         toggleBtn.classList.toggle('collapsed');
         mainContent.classList.toggle('collapsed');
         toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
     });
-    // Dropdown menus
-    document.querySelectorAll('.menu-toggle').forEach(toggle => {
-        toggle.addEventListener('click', () => {
-            toggle.parentElement.classList.toggle('active');
-        });
+}
+
+// Hamburger (mobile)
+const hamburger = document.getElementById('hamburgerBtn');
+if (hamburger) {
+    hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('mobile-open');
     });
+}
+
+// Submenu toggles
+document.querySelectorAll('.menu-toggle').forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = toggle.closest('.menu-group');
+        if (group) group.classList.toggle('open');
+    });
+});
+
+// Live clock
+function updateClock() {
+    const clockEl = document.getElementById('liveClock');
+    if (clockEl) {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    }
+}
+updateClock();
+setInterval(updateClock, 1000);
 </script>
 </body>
 </html>

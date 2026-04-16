@@ -4,14 +4,7 @@ if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
     header("Location: login.php");
     exit();
 }
-
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "freelancing";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
+require_once 'config.php';   // <-- ADD THIS LINE
 
 /* ── Filter Logic ─────────────────────────────── */
 $filterType = $_GET['filter'] ?? 'all';
@@ -144,6 +137,26 @@ $invStatusDataJson  = json_encode(array_values($invStatusCounts));
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
+    body {
+        background-image: url('<?php echo $bg_image; ?>');
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
+        font-family: var(--sans);
+    }
+    /* Keep all your existing styles */
+    /* Dark mode overrides */
+body.dark-mode {
+    --bg: rgba(0,0,0,0.9);
+    --glass: rgba(0,0,0,0.5);
+    --glass-border: rgba(255,255,255,0.1);
+    --text: #e0e0e0;
+}
+body.dark-mode::before {
+    background: rgba(0,0,0,0.85);
+}
+</style>
+<style>
 :root {
     --bg: rgba(8,12,24,0.82);
     --glass: rgba(255,255,255,0.07);
@@ -168,14 +181,7 @@ $invStatusDataJson  = json_encode(array_values($invStatusCounts));
 
 html { scroll-behavior: smooth; }
 
-body {
-    font-family: var(--sans);
-    color: var(--text);
-    min-height: 100vh;
-    background: url('uploads/banner.jpg') no-repeat center center fixed;
-    background-size: cover;
-    overflow-x: hidden;
-}
+
 
 body::before {
     content: '';
@@ -481,7 +487,8 @@ body::before {
 }
 </style>
 </head>
-<body>
+
+    <body class="<?php echo $dark_mode ? 'dark-mode' : ''; ?>">
 
 <!-- TOP NAV -->
 <nav class="topnav">

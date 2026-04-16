@@ -31,7 +31,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS services (
     fee DECIMAL(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-// 3. Invoices_new table (used by POS – must exist for foreign key)
+// 3. Invoices_new table
 $conn->query("CREATE TABLE IF NOT EXISTS invoices_new (
     id INT AUTO_INCREMENT PRIMARY KEY,
     invoice_number VARCHAR(20) UNIQUE,
@@ -48,7 +48,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS invoices_new (
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-// 4. Invoice_items table (foreign key to invoices_new)
+// 4. Invoice_items table
 $conn->query("CREATE TABLE IF NOT EXISTS invoice_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     invoice_id INT NOT NULL,
@@ -61,7 +61,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS invoice_items (
     FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-// 5. Customer_services pivot table (for assignments)
+// 5. Customer_services pivot table
 $conn->query("CREATE TABLE IF NOT EXISTS customer_services (
     id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
@@ -74,12 +74,13 @@ $conn->query("CREATE TABLE IF NOT EXISTS customer_services (
 
 $conn->query("SET FOREIGN_KEY_CHECKS = 1");
 
-// Fetch customers and services for dropdowns
+// Fetch customers and services
 $customers = $conn->query("SELECT id, name, email, phone FROM customers ORDER BY name")->fetch_all(MYSQLI_ASSOC);
 $services  = $conn->query("SELECT id, service_name, fee FROM services ORDER BY service_name")->fetch_all(MYSQLI_ASSOC);
 
 $message = "";
 $error   = "";
+$saved_inv_number = null;
 
 // ========== SAVE INVOICE ==========
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
@@ -92,11 +93,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
     $status       = $_POST['status']                ?? 'unpaid';
     $items_json   = $_POST['items_json']            ?? '[]';
 
-    // Validate status
     $allowed_status = ['unpaid', 'paid', 'partial', 'cancelled'];
     if (!in_array($status, $allowed_status)) $status = 'unpaid';
 
-    // Decode items
     $items_arr = json_decode($items_json, true);
     if (!is_array($items_arr)) $items_arr = [];
 
@@ -105,15 +104,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
     } elseif (empty($items_arr)) {
         $error = "Please add at least one item before saving.";
     } else {
-        // Calculate totals
         $subtotal = 0;
         foreach ($items_arr as $item) {
             $subtotal += floatval($item['total'] ?? 0);
         }
         $total = max(0, $subtotal - $discount);
-        $paid_amount = min($paid_amount, $total); // Can't pay more than total
+        $paid_amount = min($paid_amount, $total);
 
-        // Generate unique invoice number: INV-YYYYMMDD-XXX
+        // Generate unique invoice number
         $date_part = date('Ymd', strtotime($invoice_date));
         do {
             $rand_part   = str_pad(rand(100, 999), 3, '0', STR_PAD_LEFT);
@@ -126,10 +124,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
             $check->close();
         } while ($exists);
 
-        // Begin transaction
         $conn->begin_transaction();
         try {
-            // Insert invoice
             $stmt = $conn->prepare(
                 "INSERT INTO invoices_new
                     (invoice_number, customer_id, invoice_date, due_date, subtotal, discount, total, paid_amount, notes, status)
@@ -140,14 +136,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
                 $inv_number, $customer_id, $invoice_date, $due_date,
                 $subtotal, $discount, $total, $paid_amount, $notes, $status
             );
-
-            if (!$stmt->execute()) {
-                throw new Exception("Invoice insert failed: " . $stmt->error);
-            }
+            if (!$stmt->execute()) throw new Exception("Invoice insert failed: " . $stmt->error);
             $invoice_id = $conn->insert_id;
             $stmt->close();
 
-            // Insert each item
             $item_stmt = $conn->prepare(
                 "INSERT INTO invoice_items (invoice_id, service_id, description, qty, unit_price, total)
                  VALUES (?, ?, ?, ?, ?, ?)"
@@ -159,27 +151,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
                 $unit_price = floatval($item['unit_price'] ?? 0);
                 $item_total = floatval($item['total']      ?? 0);
 
-$item_stmt->bind_param("iisidd", $invoice_id, $svc_id, $desc, $qty, $unit_price, $item_total);
-                // Handle nullable service_id properly
+                // Handle nullable service_id
                 if ($svc_id === null) {
-                    $item_stmt->bind_param("iisdd d", $invoice_id, $svc_id, $desc, $qty, $unit_price, $item_total);
-                    // Re-bind with null support
-                    $null = null;
-                    $item_stmt->bind_param("iisdd d", $invoice_id, $null, $desc, $qty, $unit_price, $item_total);
+                    $item_stmt->bind_param("iisddd", $invoice_id, $svc_id, $desc, $qty, $unit_price, $item_total);
+                } else {
+                    $item_stmt->bind_param("iisddd", $invoice_id, $svc_id, $desc, $qty, $unit_price, $item_total);
                 }
-
-                if (!$item_stmt->execute()) {
-                    throw new Exception("Item insert failed: " . $item_stmt->error);
-                }
+                if (!$item_stmt->execute()) throw new Exception("Item insert failed: " . $item_stmt->error);
             }
             $item_stmt->close();
 
             $conn->commit();
             $message = "Invoice <strong>{$inv_number}</strong> saved successfully! Total: ৳" . number_format($total, 2);
-
-            // Pass the generated invoice number to JS for the receipt display
             $saved_inv_number = $inv_number;
-
         } catch (Exception $e) {
             $conn->rollback();
             $error = "Failed to save invoice: " . $e->getMessage();
@@ -187,20 +171,16 @@ $item_stmt->bind_param("iisidd", $invoice_id, $svc_id, $desc, $qty, $unit_price,
     }
 }
 
-// ========== ASSIGN SERVICE (existing handler) ==========
+// Assign service (if form submitted separately – kept for completeness)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['assign_service'])) {
     $customer_id = intval($_POST['customer_id']);
     $service_id  = intval($_POST['service_id']);
     $assign_date = $_POST['assign_date'] ?? date('Y-m-d');
-
     if ($customer_id > 0 && $service_id > 0) {
         $stmt = $conn->prepare("INSERT INTO customer_services (customer_id, service_id, assign_date) VALUES (?, ?, ?)");
         $stmt->bind_param("iis", $customer_id, $service_id, $assign_date);
-        if ($stmt->execute()) {
-            $message = "Service assigned successfully!";
-        } else {
-            $error = "Error assigning service: " . $stmt->error;
-        }
+        if ($stmt->execute()) $message = "Service assigned successfully!";
+        else $error = "Error assigning service: " . $stmt->error;
         $stmt->close();
     } else {
         $error = "Please select both customer and service.";
@@ -212,290 +192,319 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['assign_service'])) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>POS Invoice - AR TECH SOLUTION</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<title>POS Invoice — AR TECH SOLUTION</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-    --bg: #f0f2f5;
-    --surface: #ffffff;
-    --surface2: #f8f9fb;
-    --border: #e2e6ea;
-    --accent: #00b894;
-    --accent2: #0984e3;
-    --danger: #d63031;
-    --warn: #fdcb6e;
-    --dark: #1e2a3a;
-    --dark2: #2c3e50;
-    --text: #2d3436;
-    --muted: #636e72;
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: 'Sora', sans-serif;
-    --radius: 12px;
-    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    --bg: rgba(8,12,24,0.82);
+    --glass: rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.13);
+    --glass-hover: rgba(255,255,255,0.13);
+    --accent: #00e5c8;
+    --accent2: #7b5ea7;
+    --accent3: #ff6b6b;
+    --accent4: #ffd166;
+    --accent5: #06d6a0;
+    --text: #e8eaf0;
+    --muted: rgba(200,210,230,0.55);
+    --card-radius: 18px;
+    --sans: 'Plus Jakarta Sans', sans-serif;
+    --mono: 'Space Grotesk', sans-serif;
+    --nav-h: 64px;
+    --sidebar-w: 230px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
 
-/* NAVBAR */
-.navbar {
-    background: linear-gradient(135deg, #1e2a3a, #0f1722);
-    color: #fff;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: var(--sans);
+    color: var(--text);
+    min-height: 100vh;
+    background: url('uploads/banner.jpg') no-repeat center center fixed;
+    background-size: cover;
+    overflow-x: hidden;
+}
+
+body::before {
+    content: '';
     position: fixed;
-    top: 0; left: 0; width: 100%;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    inset: 0;
+    background: linear-gradient(135deg,rgba(8,10,30,0.88) 0%,rgba(15,20,50,0.78) 50%,rgba(5,15,35,0.85) 100%);
+    z-index: 0;
+    pointer-events: none;
 }
-.brand { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+
+/* TOP NAV */
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+    background: rgba(8,10,28,0.85);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    z-index: 1100;
+}
+.topnav-brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 18px; font-weight: 700;
+    letter-spacing: 0.5px; color: #fff;
+}
+.topnav-brand span { color: var(--accent); }
+.brand-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+.topnav-right { display: flex; align-items: center; gap: 14px; }
+.topnav-time { font-family: var(--mono); font-size: 13px; color: var(--muted); }
 .logout-btn {
-    position: absolute; right: 20px;
-    background: #e74c3c; color: #fff;
-    padding: 6px 18px; border-radius: 30px;
-    text-decoration: none; font-size: 13px; font-weight: 600;
-    transition: background .2s;
+    background: linear-gradient(135deg,#e74c3c,#c0392b);
+    color: #fff; padding: 7px 20px; border-radius: 40px;
+    text-decoration: none; font-size: 13px; font-weight: 700;
+    transition: opacity .2s; border: none; cursor: pointer;
 }
-.logout-btn:hover { background: #c0392b; }
+.logout-btn:hover { opacity: .85; }
+.hamburger {
+    background: none; border: none; color: var(--text);
+    font-size: 22px; cursor: pointer; display: none; padding: 4px;
+}
 
 /* SIDEBAR */
-.side-nav {
-    position: fixed; top: 60px; left: 0;
-    width: 220px; height: calc(100% - 60px);
-    background: #2c3e50;
-    padding-top: 20px; z-index: 1000;
-    overflow-y: auto; transition: transform .3s ease;
+.sidebar {
+    position: fixed; top: var(--nav-h); left: 0;
+    width: var(--sidebar-w); height: calc(100vh - var(--nav-h));
+    background: #08121e;
+    border-right: 1px solid var(--glass-border);
+    overflow-y: auto; overflow-x: hidden;
+    z-index: 1050;
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    padding-bottom: 40px;
 }
-.side-nav.collapsed { transform: translateX(-100%); }
-.side-nav a, .menu-toggle {
-    color: #fff; text-decoration: none;
-    padding: 12px 25px; display: block;
-    font-weight: 600; font-size: 13px;
-    border-left: 4px solid transparent; cursor: pointer;
-    transition: background .2s, border-color .2s;
-}
-.side-nav a:hover, .menu-toggle:hover { background: #34495e; border-left-color: #1abc9c; }
-.menu-group .submenu { display: none; flex-direction: column; background: #34495e; }
-.menu-group.active .submenu { display: block; }
-.submenu a { padding: 10px 40px; font-weight: 400; }
-.toggle-arrow {
-    position: fixed; top: 70px; left: 220px;
-    background: #1abc9c; color: #fff;
-    padding: 6px 10px; border-radius: 0 5px 5px 0;
-    cursor: pointer; z-index: 1001; font-size: 18px;
-    transition: left .3s ease;
-}
-.toggle-arrow.collapsed { left: 0; }
-
-/* MAIN */
-.container {
-    margin-left: 240px;
-    padding: 76px 28px 70px;
-    transition: margin-left .3s ease;
-}
-.container.collapsed { margin-left: 20px; }
-
-.page-title {
-    font-size: 22px; font-weight: 700;
-    color: var(--dark); margin-bottom: 20px;
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
+.sidebar.collapsed { transform: translateX(-100%); }
+.sidebar a, .menu-toggle {
     display: flex; align-items: center; gap: 10px;
+    color: var(--muted); text-decoration: none;
+    padding: 11px 20px; font-size: 13.5px; font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all .2s; cursor: pointer; user-select: none;
+    white-space: nowrap;
 }
-.page-title span { font-size: 26px; }
+.sidebar a:hover, .menu-toggle:hover { color: #fff; background: var(--glass); border-left-color: var(--accent); }
+.sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,200,0.07); }
+.submenu { display: none; flex-direction: column; background: rgba(0,0,0,0.2); }
+.submenu a { padding: 9px 20px 9px 38px; font-size: 13px; }
+.menu-group.open .submenu { display: flex; }
+.menu-arrow { margin-left: auto; font-size: 11px; transition: transform .25s; }
+.menu-group.open .menu-arrow { transform: rotate(180deg); }
+.sidebar-divider { height: 1px; background: var(--glass-border); margin: 10px 16px; }
 
-.alert {
-    padding: 12px 18px; border-radius: 8px;
-    margin-bottom: 18px; font-size: 14px; font-weight: 600;
-    display: flex; align-items: center; gap: 8px;
+/* SIDEBAR TOGGLE PILL */
+.sidebar-toggle-pill {
+    position: fixed; top: calc(var(--nav-h) + 16px); left: var(--sidebar-w);
+    width: 24px; height: 44px; background: var(--accent);
+    border-radius: 0 10px 10px 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 1060; font-size: 13px; color: #000;
+    font-weight: 900; transition: left .3s cubic-bezier(.4,0,.2,1), background .2s;
 }
-.alert-success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
-.alert-error   { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+.sidebar-toggle-pill:hover { background: #00c9b0; }
+.sidebar-toggle-pill.collapsed { left: 0; }
 
-/* POS GRID */
+/* MAIN CONTENT */
+.main {
+    margin-left: var(--sidebar-w);
+    padding: calc(var(--nav-h) + 24px) 24px 80px;
+    position: relative; z-index: 1;
+    transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+    min-height: 100vh;
+}
+.main.collapsed { margin-left: 0; }
+
+/* SECTION TITLE */
+.section-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px; color: var(--accent);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+
+/* ========== POS SPECIFIC STYLES (adapted to glass) ========== */
 .pos-grid {
     display: grid;
     grid-template-columns: 1fr 380px;
-    gap: 20px;
+    gap: 24px;
     align-items: start;
 }
-
-/* CARD */
 .card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
     overflow: hidden;
 }
 .card-header {
-    background: var(--dark);
-    color: #fff;
+    background: rgba(0,0,0,0.3);
     padding: 14px 20px;
     font-size: 13px; font-weight: 700;
-    letter-spacing: .5px;
-    display: flex; align-items: center; gap: 8px;
+    color: var(--accent);
+    border-bottom: 1px solid var(--glass-border);
 }
 .card-body { padding: 20px; }
-
-/* CUSTOMER SECTION */
-.form-row { display: flex; gap: 14px; flex-wrap: wrap; }
-.form-group { flex: 1; min-width: 160px; margin-bottom: 14px; }
+.form-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.form-group {
+    flex: 1;
+    min-width: 160px;
+    margin-bottom: 14px;
+}
 .form-group label {
-    display: block; font-size: 11px; font-weight: 700;
-    color: var(--muted); text-transform: uppercase;
-    letter-spacing: .6px; margin-bottom: 6px;
+    display: block;
+    font-size: 11px; font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-bottom: 6px;
 }
 .form-group select, .form-group input, .form-group textarea {
-    width: 100%; padding: 9px 12px;
-    border: 1.5px solid var(--border); border-radius: 8px;
-    font-family: var(--sans); font-size: 14px;
-    color: var(--text); background: var(--surface2);
-    transition: border-color .2s;
+    width: 100%;
+    padding: 9px 12px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
 }
 .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
-    outline: none; border-color: var(--accent);
+    border-color: var(--accent);
 }
-.form-group textarea { height: 64px; resize: vertical; }
 #customer-info {
-    background: linear-gradient(135deg, #00b89410, #0984e310);
-    border: 1.5px dashed var(--accent);
+    background: rgba(0,229,200,0.08);
+    border: 1px dashed var(--accent);
     border-radius: 10px;
-    padding: 12px 16px; margin-top: -4px;
-    font-size: 13px; color: var(--dark2);
+    padding: 12px 16px;
+    margin-top: 8px;
     display: none;
 }
 #customer-info.show { display: block; }
-#customer-info strong { display: block; font-size: 15px; color: var(--accent); margin-bottom: 4px; }
-
-/* ITEM BUILDER */
+#customer-info strong { color: var(--accent); }
 .item-builder {
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: 10px; padding: 14px; margin-bottom: 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
 }
 .item-builder-row {
     display: grid;
     grid-template-columns: 2fr 1fr 1.2fr 1fr auto;
-    gap: 8px; align-items: end;
+    gap: 8px;
+    align-items: end;
 }
-.item-builder .form-group { margin-bottom: 0; }
 .add-item-btn {
-    background: var(--accent); color: #fff;
-    border: none; border-radius: 8px;
-    padding: 9px 14px; font-size: 18px;
-    cursor: pointer; font-weight: 700;
-    transition: background .2s, transform .1s;
+    background: linear-gradient(135deg, var(--accent), #00c9b0);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
     align-self: end;
 }
-.add-item-btn:hover { background: #00a07a; transform: scale(1.05); }
-
-/* ITEMS TABLE */
 .items-table {
-    width: 100%; border-collapse: collapse;
+    width: 100%;
+    border-collapse: collapse;
     font-size: 13px;
 }
 .items-table thead tr {
-    background: var(--dark); color: #fff;
+    background: rgba(0,0,0,0.3);
 }
 .items-table th {
-    padding: 10px 12px; text-align: left;
-    font-size: 11px; font-weight: 700;
-    letter-spacing: .5px; text-transform: uppercase;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
 }
 .items-table td {
-    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--glass-border);
     vertical-align: middle;
 }
-.items-table tbody tr:hover { background: #f0faf7; }
-.items-table tbody tr:last-child td { border-bottom: none; }
 .del-btn {
-    background: var(--danger); color: #fff;
-    border: none; border-radius: 6px;
-    width: 26px; height: 26px;
-    cursor: pointer; font-size: 13px;
-    display: flex; align-items: center; justify-content: center;
-    transition: background .2s;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
 }
-.del-btn:hover { background: #b71c1c; }
-.empty-row td {
-    text-align: center; color: var(--muted);
-    padding: 28px; font-size: 13px; font-style: italic;
-}
-.item-desc-cell { font-weight: 600; }
-.item-price-cell { font-family: var(--mono); color: var(--accent2); }
-
-/* RECEIPT CARD */
-.receipt-card {
-    position: sticky; top: 76px;
-}
-
-/* RECEIPT HEADER LOGO AREA */
+.empty-row td { text-align: center; color: var(--muted); padding: 28px; }
+.receipt-card { position: sticky; top: 76px; }
 .receipt-top {
-    background: linear-gradient(135deg, var(--dark), #0f1722);
-    color: #fff; padding: 22px 20px;
-    text-align: center; border-radius: var(--radius) var(--radius) 0 0;
+    background: linear-gradient(135deg, #0f1722, #08121e);
+    padding: 22px 20px;
+    text-align: center;
 }
 .receipt-logo {
     font-size: 18px; font-weight: 800;
-    letter-spacing: 2px; margin-bottom: 4px;
+    letter-spacing: 2px; color: #fff;
 }
-.receipt-tagline { font-size: 10px; color: #aab; letter-spacing: 1px; opacity:.8; }
+.receipt-tagline { font-size: 10px; color: var(--muted); }
 .receipt-inv-num {
     margin-top: 12px;
     font-family: var(--mono);
     font-size: 20px; font-weight: 700;
     color: var(--accent);
-    letter-spacing: 2px;
 }
-
-/* RECEIPT BODY */
 .receipt-body { padding: 18px; }
 .r-section { margin-bottom: 14px; }
 .r-label {
     font-size: 10px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .6px;
-    color: var(--muted); margin-bottom: 4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
 }
-.r-value { font-size: 14px; font-weight: 600; color: var(--text); }
-.r-divider {
-    border: none; border-top: 1px dashed var(--border);
-    margin: 12px 0;
-}
+.r-value { font-size: 14px; font-weight: 600; color: #fff; }
+.r-divider { border: none; border-top: 1px dashed var(--glass-border); margin: 12px 0; }
 .r-line {
     display: flex; justify-content: space-between;
-    align-items: center; font-size: 13px;
-    padding: 4px 0; color: var(--text);
+    font-size: 13px; padding: 4px 0;
 }
-.r-line .r-mono { font-family: var(--mono); }
 .r-subtotal-line {
     display: flex; justify-content: space-between;
     font-size: 13px; padding: 4px 0; color: var(--muted);
 }
-.r-total-box {
-    background: linear-gradient(135deg, var(--accent), #00a07a);
-    border-radius: 10px; padding: 14px 16px;
-    display: flex; justify-content: space-between;
-    align-items: center; margin-bottom: 14px;
+.discount-row {
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0;
 }
-.r-total-label { color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; }
-.r-total-amt { font-family: var(--mono); font-size: 22px; font-weight: 700; color: #fff; }
-
-/* PAYMENT SECTION */
+.discount-row label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.discount-row input {
+    flex: 1;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: var(--text);
+}
 .payment-details {
-    background: #f0f9f4;
+    background: rgba(6,214,160,0.08);
     border-radius: 10px;
     padding: 12px;
-    margin-bottom: 14px;
+    margin: 12px 0;
 }
 .payment-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    font-size: 13px;
+    display: flex; justify-content: space-between;
+    padding: 6px 0; font-size: 13px;
 }
-.payment-line .label { color: var(--muted); font-weight: 600; }
-.payment-line .amount { font-family: var(--mono); font-weight: 700; color: var(--dark2); }
 .balance-line {
     border-top: 1px solid var(--accent);
     margin-top: 6px;
@@ -506,232 +515,151 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 .paid-input {
     width: 100%;
     padding: 8px;
-    border: 1.5px solid var(--border);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
     border-radius: 8px;
-    font-family: var(--mono);
-    font-size: 14px;
+    color: var(--text);
     margin-top: 6px;
 }
-
-/* STATUS BADGES */
 .status-select {
-    width: 100%; padding: 9px 12px;
-    border: 1.5px solid var(--border); border-radius: 8px;
-    font-family: var(--sans); font-size: 14px;
-    background: var(--surface2); margin-bottom: 12px;
+    width: 100%;
+    padding: 9px 12px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: var(--text);
 }
-
-/* DISCOUNT ROW */
-.discount-row {
-    display: flex; align-items: center; gap: 8px;
-    margin-bottom: 10px;
+.r-total-box {
+    background: linear-gradient(135deg, var(--accent), #00c9b0);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
 }
-.discount-row label { font-size: 13px; color: var(--muted); font-weight: 600; white-space: nowrap; }
-.discount-row input {
-    flex: 1; padding: 8px 10px;
-    border: 1.5px solid var(--border); border-radius: 8px;
-    font-family: var(--mono); font-size: 14px;
+.r-total-label { color: #000; font-weight: 700; }
+.r-total-amt { font-family: var(--mono); font-size: 22px; font-weight: 700; color: #000; }
+.btn-save, .btn-print, .btn-clear {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 40px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
 }
-
-/* BUTTONS */
 .btn-save {
-    width: 100%; padding: 13px;
-    background: linear-gradient(135deg, var(--accent), #00a07a);
-    color: #fff; border: none; border-radius: 10px;
-    font-family: var(--sans); font-size: 15px;
-    font-weight: 700; cursor: pointer;
-    letter-spacing: .5px; margin-bottom: 10px;
-    transition: opacity .2s, transform .1s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(135deg, var(--accent), #00c9b0);
+    color: #000;
 }
-.btn-save:hover { opacity: .92; transform: translateY(-1px); }
 .btn-print {
-    width: 100%; padding: 11px;
-    background: var(--accent2); color: #fff;
-    border: none; border-radius: 10px;
-    font-family: var(--sans); font-size: 14px;
-    font-weight: 700; cursor: pointer;
-    transition: opacity .2s; display: flex;
-    align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(135deg, var(--accent2), #9b59b6);
+    color: #fff;
 }
-.btn-print:hover { opacity: .88; }
 .btn-clear {
-    width: 100%; padding: 9px;
-    background: transparent; color: var(--danger);
-    border: 1.5px solid var(--danger); border-radius: 10px;
-    font-family: var(--sans); font-size: 13px;
-    font-weight: 700; cursor: pointer; margin-top: 8px;
-    transition: background .2s, color .2s;
+    background: transparent;
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
 }
-.btn-clear:hover { background: var(--danger); color: #fff; }
-
-/* FOOTER */
-.footer {
-    background: #1a1a1a; color: #aaa;
-    text-align: center; padding: 12px;
-    position: fixed; bottom: 0; left: 0;
-    width: 100%; font-size: 13px; z-index: 999;
+.btn-clear:hover { background: var(--accent3); color: #fff; }
+.alert {
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    text-align: center;
 }
+.alert-success { background: rgba(6,214,160,0.15); border: 1px solid var(--accent5); color: var(--accent5); }
+.alert-error   { background: rgba(255,107,107,0.15); border: 1px solid var(--accent3); color: var(--accent3); }
 
-/* PRINT INVOICE STYLES - A4 PERFECT */
+/* PRINT INVOICE STYLES (A4) */
 @media print {
-    body * { visibility: hidden; }
-    #print-invoice, #print-invoice * { visibility: visible; }
-    #print-invoice {
-        position: absolute; left: 0; top: 0;
-        width: 100%; max-width: 210mm;
-        margin: 0 auto; padding: 10mm;
-        box-sizing: border-box; background: white;
-    }
-    @page { size: A4; margin: 1.5cm; }
-    .pi-table td, .pi-table th { font-size: 12px; padding: 8px 6px; }
-    .pi-header, .pi-parties, .pi-footer-note { page-break-inside: avoid; }
-    .pi-table { page-break-inside: auto; }
-    .pi-table tr { page-break-inside: avoid; page-break-after: auto; }
-    .navbar, .side-nav, .toggle-arrow, .footer,
-    .item-builder, .btn-save, .btn-print, .btn-clear,
-    .add-item-btn, .del-btn, .alert, .card:not(.receipt-card),
-    .status-select, .discount-row, #customer-section, .payment-details .paid-input {
+    .topnav, .sidebar, .sidebar-toggle-pill, .btn-save, .btn-print, .btn-clear, .add-item-btn, .del-btn, .alert, .card:not(.receipt-card), .status-select, .discount-row, .paid-input, #customer-section, .footer {
         display: none !important;
     }
-    .container { margin: 0 !important; padding: 0 !important; }
+    .main { margin: 0 !important; padding: 0 !important; background: white; }
     .pos-grid { display: block !important; }
     .receipt-card { position: static !important; box-shadow: none !important; border: none !important; }
-    .receipt-top { border-radius: 0 !important; }
     #print-invoice { display: block !important; }
+    @page { size: A4; margin: 1.5cm; }
 }
-
-#print-invoice { display: none; }
-
-/* PRINT INVOICE LAYOUT */
-#print-invoice {
-    max-width: 700px; margin: 0 auto;
-    padding: 30px; font-family: var(--sans);
-}
-.pi-header {
-    display: flex; justify-content: space-between;
-    align-items: flex-start; margin-bottom: 24px;
-}
-.pi-logo { font-size: 22px; font-weight: 800; color: var(--dark); }
-.pi-logo small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+#print-invoice { display: none; max-width: 700px; margin: 0 auto; padding: 30px; font-family: var(--sans); background: white; }
+.pi-header { display: flex; justify-content: space-between; margin-bottom: 24px; }
+.pi-logo { font-size: 22px; font-weight: 800; color: #1e2a3a; }
+.pi-logo small { display: block; font-size: 12px; color: #636e72; }
 .pi-inv { text-align: right; }
-.pi-inv .inv-num { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--accent); }
-.pi-inv .inv-date { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.pi-inv .inv-num { font-family: var(--mono); font-size: 18px; font-weight: 700; color: #00b894; }
+.pi-inv .inv-date { font-size: 12px; color: #636e72; }
 .pi-parties { display: flex; justify-content: space-between; margin-bottom: 24px; gap: 20px; }
-.pi-party { flex: 1; }
-.pi-party h4 { font-size: 10px; text-transform: uppercase; letter-spacing:.7px; color:var(--muted); margin-bottom: 6px; }
-.pi-party p { font-size: 13px; line-height: 1.6; }
+.pi-party h4 { font-size: 10px; text-transform: uppercase; color: #636e72; margin-bottom: 6px; }
 .pi-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-.pi-table th { background: var(--dark); color: #fff; padding: 9px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
-.pi-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
-.pi-table tfoot td { font-weight: 700; border-top: 2px solid var(--dark); }
-.pi-total-row { background: var(--accent); color: #fff; }
-.pi-total-row td { font-size: 15px; }
-.pi-footer-note { font-size: 11px; color: var(--muted); text-align: center; margin-top: 30px; border-top: 1px dashed var(--border); padding-top: 12px; }
+.pi-table th { background: #2c3e50; color: white; padding: 9px 12px; text-align: left; font-size: 11px; }
+.pi-table td { padding: 9px 12px; border-bottom: 1px solid #e2e6ea; font-size: 13px; }
+.pi-table tfoot td { font-weight: 700; border-top: 2px solid #2c3e50; }
+.pi-total-row td { background: #00b894; color: white; font-size: 15px; }
+.pi-footer-note { font-size: 11px; color: #636e72; text-align: center; margin-top: 30px; border-top: 1px dashed #e2e6ea; padding-top: 12px; }
 
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(6,8,20,0.9);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--glass-border);
+    text-align: center;
+    padding: 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+    z-index: 900;
+}
 @media (max-width: 900px) {
     .pos-grid { grid-template-columns: 1fr; }
     .receipt-card { position: static; }
 }
-@media (max-width: 768px) {
-    .container { margin-left: 0; padding: 70px 12px 60px; }
-    .side-nav { transform: translateX(-100%); }
-    .toggle-arrow { left: 0; }
+@media (max-width: 700px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .sidebar-toggle-pill { display: none; }
+    .hamburger { display: block; }
+    .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
     .item-builder-row { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
 <body>
 
-<!-- NAVBAR -->
-<div class="navbar">
-    <div class="brand">🔌 AR TECH SOLUTION</div>
-    <a href="logout.php" class="logout-btn">Logout</a>
-</div>
+<!-- TOP NAVIGATION -->
+<nav class="topnav">
+    <div style="display:flex;align-items:center;gap:14px;">
+        <button class="hamburger" id="hamburgerBtn">☰</button>
+        <div class="topnav-brand">
+            <div class="brand-dot"></div>
+            <span>AR TECH</span> SOLUTION
+        </div>
+    </div>
+    <div class="topnav-right">
+        <div class="topnav-time" id="liveClock"></div>
+        <a href="logout.php" class="logout-btn">Logout</a>
+    </div>
+</nav>
 
-<!-- SIDEBAR -->
-<div class="side-nav" id="sidebar">
-    <a href="dashboard.php">📊 Dashboard</a>
-    <div class="menu-group">
-        <div class="menu-toggle">💵 Account ▾</div>
-        <div class="submenu">
-            <a href="account.php">Account Overview</a>
-            <a href="account_report.php">Account Report</a>
-            <a href="change_password.php">Change Password</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">👤 Student Information ▾</div>
-        <div class="submenu">
-            <a href="insert.php">Add Student</a>
-            <a href="student_list.php">Total Student List</a>
-            <a href="form_view.php">Student Form</a>
-            <a href="completed_students.php">Course Complete</a>
-            <a href="incomplete_students.php">Course Incomplete</a>
-            <a href="ongoing_students.php">Ongoing</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">👥 Customers ▾</div>
-        <div class="submenu">
-            <a href="add_customer.php">Add Customer</a>
-            <a href="customer_list.php">Customer List</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">🛠️ Services ▾</div>
-        <div class="submenu">
-            <a href="services.php">Manage Services</a>
-            <a href="assign_service.php">Assign Service</a>
-            <a href="invoice_list.php">Invoice List</a>
-        </div>
-    </div>
-    <a href="delete.php">🗑️ Delete</a>
-    <a href="report.php">📄 Report</a>
-    <div class="menu-group active">
-        <div class="menu-toggle">💵 Payment ▾</div>
-        <div class="submenu">
-            <a href="invoice_pos.php">🧾 POS Invoice</a>
-            <a href="invoice.php">Print Invoice</a>
-            <a href="view_invoice.php">Verify Invoice</a>
-            <a href="input_payment.php">Add Payment</a>
-            <a href="payment_due.php">Due Payment List</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">📆 Attendance ▾</div>
-        <div class="submenu">
-            <a href="attendance.php">Take Attendance</a>
-            <a href="attendance_report.php">View Attendance Report</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">📜 Certificate ▾</div>
-        <div class="submenu">
-            <a href="upload_certificate.php">Upload Certificate</a>
-            <a href="certificate_list.php">View Certificate</a>
-        </div>
-    </div>
-    <div class="menu-group">
-        <div class="menu-toggle">🎬 Video ▾</div>
-        <div class="submenu">
-            <a href="upload_video.php">Upload Video</a>
-            <a href="view_videos.php">View Videos</a>
-        </div>
-    </div>
-    <a href="routine_generator.php">🕒 Routine</a>
-</div>
-<div class="toggle-arrow" id="toggleBtn">◀</div>
+<!-- SIDEBAR (modern dashboard) -->
+<?php
+include 'navigation.php';
+?>
+
+<div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
 <!-- MAIN CONTENT -->
-<div class="container" id="mainContent">
-    <div class="page-title"><span>🧾</span> Point of Sale — Invoice Generator</div>
+<main class="main" id="mainContent">
+    <div class="section-title">🧾 Point of Sale — Invoice Generator</div>
 
     <?php if ($message): ?>
-        <div class="alert alert-success">✅ <?= $message ?></div>
+        <div class="alert alert-success">✅ <?php echo $message; ?></div>
     <?php endif; ?>
     <?php if ($error): ?>
-        <div class="alert alert-error">❌ <?= htmlspecialchars($error) ?></div>
+        <div class="alert alert-error">❌ <?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
 
     <form method="POST" id="posForm">
@@ -750,26 +678,26 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
                                 <select name="customer_id" id="customer_select" required>
                                     <option value="">— Choose Customer —</option>
                                     <?php foreach ($customers as $c): ?>
-                                        <option value="<?= $c['id'] ?>"
-                                            data-name="<?= htmlspecialchars($c['name']) ?>"
-                                            data-email="<?= htmlspecialchars($c['email'] ?? '') ?>"
-                                            data-phone="<?= htmlspecialchars($c['phone'] ?? '') ?>">
-                                            <?= htmlspecialchars($c['name']) ?>
+                                        <option value="<?php echo $c['id']; ?>"
+                                            data-name="<?php echo htmlspecialchars($c['name']); ?>"
+                                            data-email="<?php echo htmlspecialchars($c['email'] ?? ''); ?>"
+                                            data-phone="<?php echo htmlspecialchars($c['phone'] ?? ''); ?>">
+                                            <?php echo htmlspecialchars($c['name']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>Invoice Date</label>
-                                <input type="date" name="invoice_date" id="invoice_date" value="<?= date('Y-m-d') ?>">
+                                <input type="date" name="invoice_date" id="invoice_date" value="<?php echo date('Y-m-d'); ?>">
                             </div>
                             <div class="form-group">
                                 <label>Due Date</label>
-                                <input type="date" name="due_date" id="due_date" value="<?= date('Y-m-d', strtotime('+7 days')) ?>">
+                                <input type="date" name="due_date" id="due_date" value="<?php echo date('Y-m-d', strtotime('+7 days')); ?>">
                             </div>
                         </div>
                         <div id="customer-info">
-                            <strong id="ci-name">—</strong>
+                            <strong id="ci-name">—</strong><br>
                             <span id="ci-email"></span> &nbsp;|&nbsp; <span id="ci-phone"></span>
                         </div>
                     </div>
@@ -786,8 +714,8 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
                                     <select id="svc_select" onchange="autoFillPrice()">
                                         <option value="">— Pick Service or Custom —</option>
                                         <?php foreach ($services as $s): ?>
-                                            <option value="<?= $s['id'] ?>" data-price="<?= $s['fee'] ?>" data-name="<?= htmlspecialchars($s['service_name']) ?>">
-                                                <?= htmlspecialchars($s['service_name']) ?> (৳<?= number_format($s['fee'],2) ?>)
+                                            <option value="<?php echo $s['id']; ?>" data-price="<?php echo $s['fee']; ?>" data-name="<?php echo htmlspecialchars($s['service_name']); ?>">
+                                                <?php echo htmlspecialchars($s['service_name']); ?> (৳<?php echo number_format($s['fee'],2); ?>)
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -809,27 +737,14 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
                         </div>
                         <div style="overflow-x:auto;">
                             <table class="items-table" id="itemsTable">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Description</th>
-                                        <th>Qty</th>
-                                        <th>Unit Price</th>
-                                        <th>Total</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="itemsBody">
-                                    <tr class="empty-row" id="emptyRow">
-                                        <td colspan="6">📦 No items added yet. Use the form above to add items.</td>
-                                    </tr>
-                                </tbody>
+                                <thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th><th></th></tr></thead>
+                                <tbody id="itemsBody"><tr class="empty-row" id="emptyRow"><td colspan="6">📦 No items added yet. Use the form above to add items.</td></tr></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
-                <!-- Notes -->
+                <!-- Notes & Status -->
                 <div class="card">
                     <div class="card-header">📝 Notes & Payment Status</div>
                     <div class="card-body">
@@ -857,96 +772,53 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
                 <div class="receipt-top">
                     <div class="receipt-logo">AR TECH SOLUTION</div>
                     <div class="receipt-tagline">FREELANCING & TRAINING CENTER</div>
-                    <div class="receipt-inv-num" id="r-inv-num">INV-<?= date('Ymd') ?>-???</div>
+                    <div class="receipt-inv-num" id="r-inv-num">INV-<?php echo date('Ymd'); ?>-???</div>
                 </div>
                 <div class="receipt-body">
                     <div class="r-section">
                         <div class="r-label">Bill To</div>
                         <div class="r-value" id="r-customer">—</div>
-                        <div style="font-size:12px; color:var(--muted); margin-top:2px;" id="r-customer-contact">Select a customer</div>
+                        <div style="font-size:12px; margin-top:2px;" id="r-customer-contact">Select a customer</div>
                     </div>
                     <div class="form-row" style="gap:10px;">
-                        <div>
-                            <div class="r-label">Invoice Date</div>
-                            <div class="r-value" id="r-idate"><?= date('d M Y') ?></div>
-                        </div>
-                        <div>
-                            <div class="r-label">Due Date</div>
-                            <div class="r-value" id="r-ddate"><?= date('d M Y', strtotime('+7 days')) ?></div>
-                        </div>
+                        <div><div class="r-label">Invoice Date</div><div class="r-value" id="r-idate"><?php echo date('d M Y'); ?></div></div>
+                        <div><div class="r-label">Due Date</div><div class="r-value" id="r-ddate"><?php echo date('d M Y', strtotime('+7 days')); ?></div></div>
                     </div>
                     <hr class="r-divider">
                     <div class="r-label" style="margin-bottom:8px;">Items</div>
-                    <div id="r-items">
-                        <div style="font-size:13px; color:var(--muted); font-style:italic;">No items yet</div>
-                    </div>
+                    <div id="r-items"><div style="font-size:13px; font-style:italic;">No items yet</div></div>
                     <hr class="r-divider">
                     <div class="r-subtotal-line"><span>Subtotal</span><span class="r-mono" id="r-subtotal">৳ 0.00</span></div>
                     <div class="discount-row">
                         <label>Discount (৳)</label>
-                        <input type="number" name="discount" id="discount_input" min="0" step="0.01" value="0" placeholder="0.00" oninput="updateReceipt()">
+                        <input type="number" name="discount" id="discount_input" min="0" step="0.01" value="0" oninput="updateReceipt()">
                     </div>
-
-                    <!-- Amount Paid Section -->
                     <div class="payment-details">
-                        <div class="payment-line">
-                            <span class="label">Total Amount:</span>
-                            <span class="amount" id="r_total_amount">৳ 0.00</span>
-                        </div>
-                        <div class="payment-line">
-                            <span class="label">Amount Paid:</span>
-                            <input type="number" name="paid_amount" id="paid_amount_input" min="0" step="0.01" value="0" class="paid-input" oninput="updatePaidAmount()">
-                        </div>
-                        <div class="payment-line balance-line">
-                            <span class="label">Balance Due:</span>
-                            <span class="amount" id="r_balance_due">৳ 0.00</span>
-                        </div>
+                        <div class="payment-line"><span class="label">Total Amount:</span><span class="amount" id="r_total_amount">৳ 0.00</span></div>
+                        <div class="payment-line"><span class="label">Amount Paid:</span><input type="number" name="paid_amount" id="paid_amount_input" min="0" step="0.01" value="0" class="paid-input" oninput="updatePaidAmount()"></div>
+                        <div class="payment-line balance-line"><span class="label">Balance Due:</span><span class="amount" id="r_balance_due">৳ 0.00</span></div>
                     </div>
-
-                    <div class="r-total-box">
-                        <span class="r-total-label">TOTAL DUE</span>
-                        <span class="r-total-amt" id="r-total">৳ 0.00</span>
-                    </div>
-                    <button type="submit" name="save_invoice" class="btn-save" onclick="prepareSubmit()">
-                        💾 Save Invoice
-                    </button>
-                    <button type="button" class="btn-print" onclick="printInvoice()">
-                        🖨️ Print Invoice
-                    </button>
+                    <div class="r-total-box"><span class="r-total-label">TOTAL DUE</span><span class="r-total-amt" id="r-total">৳ 0.00</span></div>
+                    <button type="submit" name="save_invoice" class="btn-save" onclick="prepareSubmit()">💾 Save Invoice</button>
+                    <button type="button" class="btn-print" onclick="printInvoice()">🖨️ Print Invoice</button>
                     <button type="button" class="btn-clear" onclick="clearAll()">✕ Clear / New Invoice</button>
                 </div>
             </div>
         </div>
     </form>
 
-    <!-- PRINT-ONLY INVOICE LAYOUT (A4 OPTIMIZED) -->
+    <!-- PRINT-ONLY INVOICE LAYOUT -->
     <div id="print-invoice">
         <div class="pi-header">
-            <div>
-                <div class="pi-logo">AR TECH SOLUTION<small>Freelancing & Training Center</small></div>
-            </div>
-            <div class="pi-inv">
-                <div class="inv-num" id="pi-invnum">—</div>
-                <div class="inv-date">Date: <span id="pi-date">—</span></div>
-                <div class="inv-date">Due: <span id="pi-due">—</span></div>
-            </div>
+            <div><div class="pi-logo">AR TECH SOLUTION<small>Freelancing & Training Center</small></div></div>
+            <div class="pi-inv"><div class="inv-num" id="pi-invnum">—</div><div class="inv-date">Date: <span id="pi-date">—</span></div><div class="inv-date">Due: <span id="pi-due">—</span></div></div>
         </div>
         <div class="pi-parties">
-            <div class="pi-party">
-                <h4>Billed To</h4>
-                <p id="pi-customer">—</p>
-                <p id="pi-contact" style="font-size:12px; color:var(--muted);"></p>
-            </div>
-            <div class="pi-party" style="text-align:right;">
-                <h4>From</h4>
-                <p><strong>AR TECH SOLUTION</strong></p>
-                <p style="font-size:12px; color:var(--muted);">Freelancing & Training Center</p>
-            </div>
+            <div class="pi-party"><h4>Billed To</h4><p id="pi-customer">—</p><p id="pi-contact" style="font-size:12px;"></p></div>
+            <div class="pi-party" style="text-align:right;"><h4>From</h4><p><strong>AR TECH SOLUTION</strong></p><p style="font-size:12px;">Freelancing & Training Center</p></div>
         </div>
         <table class="pi-table">
-            <thead>
-                <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
-            </thead>
+            <thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
             <tbody id="pi-tbody"></tbody>
             <tfoot>
                 <tr><td colspan="4">Subtotal</td><td id="pi-subtotal">৳ 0.00</td></tr>
@@ -956,75 +828,68 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
                 <tr class="pi-total-row"><td colspan="4"><strong>Balance Due</strong></td><td id="pi-balance">৳ 0.00</td></tr>
             </tfoot>
         </table>
-        <div class="pi-footer-note">Thank you for your business! · AR TECH SOLUTION · <?= date('Y') ?></div>
+        <div class="pi-footer-note">Thank you for your business! · AR TECH SOLUTION · <?php echo date('Y'); ?></div>
     </div>
-</div>
+</main>
 
 <div class="footer">
-    &copy; <?= date("Y") ?> AR TECH SOLUTION | Freelancing Student Management System
+    &copy; <?php echo date("Y"); ?> AR TECH SOLUTION — Freelancing Student Management System
 </div>
 
-<!-- ========== JAVASCRIPT ========== -->
 <script>
-// Sidebar toggle
+// Sidebar toggle (desktop)
 const sidebar = document.getElementById('sidebar');
-const toggleBtn = document.getElementById('toggleBtn');
+const toggleBtn = document.getElementById('sidebarToggle');
 const mainContent = document.getElementById('mainContent');
-toggleBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('collapsed');
-    toggleBtn.classList.toggle('collapsed');
-    mainContent.classList.toggle('collapsed');
-    toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
-});
-document.querySelectorAll('.menu-toggle').forEach(t => {
-    t.addEventListener('click', () => t.parentElement.classList.toggle('active'));
+if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        toggleBtn.classList.toggle('collapsed');
+        mainContent.classList.toggle('collapsed');
+        toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    });
+}
+
+// Hamburger (mobile)
+const hamburger = document.getElementById('hamburgerBtn');
+if (hamburger) {
+    hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('mobile-open');
+    });
+}
+
+// Submenu toggles
+document.querySelectorAll('.menu-toggle').forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = toggle.closest('.menu-group');
+        if (group) group.classList.toggle('open');
+    });
 });
 
-// ── After a successful save, update the receipt invoice number ──
+// Live clock
+function updateClock() {
+    const clockEl = document.getElementById('liveClock');
+    if (clockEl) {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ========== POS JAVASCRIPT ==========
 <?php if (!empty($saved_inv_number)): ?>
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('r-inv-num').textContent = '<?= $saved_inv_number ?>';
-    document.getElementById('pi-invnum').textContent  = '<?= $saved_inv_number ?>';
+    document.getElementById('r-inv-num').textContent = '<?php echo $saved_inv_number; ?>';
+    document.getElementById('pi-invnum').textContent  = '<?php echo $saved_inv_number; ?>';
 });
 <?php endif; ?>
 
-// Customer selection
-document.getElementById('customer_select').addEventListener('change', function() {
-    const opt = this.options[this.selectedIndex];
-    const name = opt.dataset.name || '';
-    const email = opt.dataset.email || '';
-    const phone = opt.dataset.phone || '';
-    if (name) {
-        document.getElementById('customer-info').classList.add('show');
-        document.getElementById('ci-name').textContent = name;
-        document.getElementById('ci-email').textContent = email;
-        document.getElementById('ci-phone').textContent = phone;
-        document.getElementById('r-customer').textContent = name;
-        document.getElementById('r-customer-contact').textContent = (email ? email + '  ' : '') + (phone || '');
-        document.getElementById('pi-customer').textContent = name;
-        document.getElementById('pi-contact').textContent = (email ? email + '   ' : '') + (phone || '');
-    } else {
-        document.getElementById('customer-info').classList.remove('show');
-        document.getElementById('r-customer').textContent = '—';
-        document.getElementById('r-customer-contact').textContent = 'Select a customer';
-    }
-});
-
-// Date sync
-document.getElementById('invoice_date').addEventListener('change', function() {
-    const d = new Date(this.value);
-    document.getElementById('r-idate').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-    document.getElementById('pi-date').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-});
-document.getElementById('due_date').addEventListener('change', function() {
-    const d = new Date(this.value);
-    document.getElementById('r-ddate').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-    document.getElementById('pi-due').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-});
-
-// Items array
 let items = [];
 let itemCounter = 0;
+
+function fmt(n) { return '৳ ' + parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
 function autoFillPrice() {
     const sel = document.getElementById('svc_select');
@@ -1035,23 +900,17 @@ function autoFillPrice() {
     }
 }
 
-function fmt(n) { return '৳ ' + parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-
 function addItem() {
     const svcSel = document.getElementById('svc_select');
-    const desc   = document.getElementById('item_desc').value.trim() || svcSel.options[svcSel.selectedIndex].text.split('(')[0].trim();
-    const price  = parseFloat(document.getElementById('item_price').value) || 0;
-    const qty    = parseInt(document.getElementById('item_qty').value) || 1;
-    const svcId  = svcSel.value || null;
-
+    const desc = document.getElementById('item_desc').value.trim() || svcSel.options[svcSel.selectedIndex]?.text.split('(')[0].trim() || '';
+    const price = parseFloat(document.getElementById('item_price').value) || 0;
+    const qty = parseInt(document.getElementById('item_qty').value) || 1;
+    const svcId = svcSel.value || null;
     if (!desc || price <= 0) { alert('Please enter a description and price.'); return; }
-
     itemCounter++;
     const total = price * qty;
     items.push({ id: itemCounter, service_id: svcId, description: desc, qty, unit_price: price, total });
     renderItems();
-
-    // Reset form
     document.getElementById('svc_select').value = '';
     document.getElementById('item_desc').value = '';
     document.getElementById('item_price').value = '';
@@ -1066,7 +925,7 @@ function removeItem(id) {
 function renderItems() {
     const tbody = document.getElementById('itemsBody');
     if (items.length === 0) {
-        tbody.innerHTML = `<tr class="empty-row" id="emptyRow"><td colspan="6">📦 No items added yet. Use the form above to add items.</td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="6">📦 No items added yet. Use the form above to add items.</td></tr>`;
         updateReceipt();
         return;
     }
@@ -1074,10 +933,10 @@ function renderItems() {
     items.forEach((item, idx) => {
         html += `<tr>
             <td>${idx+1}</td>
-            <td class="item-desc-cell">${escapeHtml(item.description)}</td>
+            <td>${escapeHtml(item.description)}</td>
             <td>${item.qty}</td>
-            <td class="item-price-cell">${fmt(item.unit_price)}</td>
-            <td class="item-price-cell"><strong>${fmt(item.total)}</strong></td>
+            <td>${fmt(item.unit_price)}</td>
+            <td><strong>${fmt(item.total)}</strong></td>
             <td><button type="button" class="del-btn" onclick="removeItem(${item.id})">✕</button></td>
         </tr>`;
     });
@@ -1085,15 +944,7 @@ function renderItems() {
     updateReceipt();
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
-}
+function escapeHtml(str) { return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 
 function getTotalDue() {
     const subtotal = items.reduce((s, i) => s + i.total, 0);
@@ -1104,24 +955,14 @@ function getTotalDue() {
 function updatePaidAmount() {
     const totalDue = getTotalDue();
     let paid = parseFloat(document.getElementById('paid_amount_input').value) || 0;
-    if (paid > totalDue) {
-        paid = totalDue;
-        document.getElementById('paid_amount_input').value = paid.toFixed(2);
-    }
+    if (paid > totalDue) { paid = totalDue; document.getElementById('paid_amount_input').value = paid.toFixed(2); }
     const balance = totalDue - paid;
     document.getElementById('r_balance_due').textContent = fmt(balance);
     document.getElementById('r-total').textContent = fmt(balance);
-
-    // Auto-update status based on paid amount
     const statusSelect = document.getElementById('status_select');
-    if (balance <= 0 && totalDue > 0) {
-        statusSelect.value = 'paid';
-    } else if (paid > 0 && balance > 0) {
-        statusSelect.value = 'partial';
-    } else if (paid === 0 && totalDue > 0) {
-        statusSelect.value = 'unpaid';
-    }
-
+    if (balance <= 0 && totalDue > 0) statusSelect.value = 'paid';
+    else if (paid > 0 && balance > 0) statusSelect.value = 'partial';
+    else if (paid === 0 && totalDue > 0) statusSelect.value = 'unpaid';
     updatePrintPaidFields(totalDue, paid, balance);
 }
 
@@ -1136,60 +977,31 @@ function updateReceipt() {
     const discount = parseFloat(document.getElementById('discount_input').value) || 0;
     const totalDue = Math.max(0, subtotal - discount);
     let paid = parseFloat(document.getElementById('paid_amount_input').value) || 0;
-    if (paid > totalDue) {
-        paid = totalDue;
-        document.getElementById('paid_amount_input').value = paid.toFixed(2);
-    }
+    if (paid > totalDue) { paid = totalDue; document.getElementById('paid_amount_input').value = paid.toFixed(2); }
     const balance = totalDue - paid;
-
     document.getElementById('r-subtotal').textContent = fmt(subtotal);
     document.getElementById('r_total_amount').textContent = fmt(totalDue);
     document.getElementById('r_balance_due').textContent = fmt(balance);
     document.getElementById('r-total').textContent = fmt(balance);
-
-    // Update receipt items list
     let rHtml = '';
-    if (items.length === 0) {
-        rHtml = '<div style="font-size:13px; color:var(--muted); font-style:italic;">No items yet</div>';
-    } else {
-        items.forEach(i => {
-            rHtml += `<div class="r-line"><span>${escapeHtml(i.description)} ×${i.qty}</span><span class="r-mono">${fmt(i.total)}</span></div>`;
-        });
-    }
+    if (items.length === 0) rHtml = '<div style="font-size:13px; font-style:italic;">No items yet</div>';
+    else items.forEach(i => { rHtml += `<div class="r-line"><span>${escapeHtml(i.description)} ×${i.qty}</span><span class="r-mono">${fmt(i.total)}</span></div>`; });
     document.getElementById('r-items').innerHTML = rHtml;
-
-    // Update print invoice table
     let piHtml = '';
-    items.forEach((item, idx) => {
-        piHtml += `<tr>
-            <td>${idx+1}</td>
-            <td>${escapeHtml(item.description)}</td>
-            <td>${item.qty}</td>
-            <td>${fmt(item.unit_price)}</td>
-            <td>${fmt(item.total)}</td>
-        </tr>`;
-    });
+    items.forEach((item, idx) => { piHtml += `<tr><td>${idx+1}</td><td>${escapeHtml(item.description)}</td><td>${item.qty}</td><td>${fmt(item.unit_price)}</td><td>${fmt(item.total)}</td></tr>`; });
     document.getElementById('pi-tbody').innerHTML = piHtml;
     document.getElementById('pi-subtotal').textContent = fmt(subtotal);
     document.getElementById('pi-discount').textContent = fmt(discount);
     document.getElementById('pi-total-display').textContent = fmt(totalDue);
     document.getElementById('pi-paid').textContent = fmt(paid);
     document.getElementById('pi-balance').textContent = fmt(balance);
-
-    // Auto-update status
     const statusSelect = document.getElementById('status_select');
-    if (balance <= 0 && totalDue > 0) {
-        statusSelect.value = 'paid';
-    } else if (paid > 0 && balance > 0) {
-        statusSelect.value = 'partial';
-    } else if (paid === 0 && totalDue > 0) {
-        statusSelect.value = 'unpaid';
-    }
+    if (balance <= 0 && totalDue > 0) statusSelect.value = 'paid';
+    else if (paid > 0 && balance > 0) statusSelect.value = 'partial';
+    else if (paid === 0 && totalDue > 0) statusSelect.value = 'unpaid';
 }
 
-function prepareSubmit() {
-    document.getElementById('items_json').value = JSON.stringify(items);
-}
+function prepareSubmit() { document.getElementById('items_json').value = JSON.stringify(items); }
 
 function clearAll() {
     if (!confirm('Clear all items and start a new invoice?')) return;
@@ -1202,10 +1014,9 @@ function clearAll() {
     document.getElementById('discount_input').value = 0;
     document.getElementById('paid_amount_input').value = 0;
     document.getElementById('status_select').value = 'unpaid';
-    document.getElementById('invoice_date').value = '<?= date('Y-m-d') ?>';
-    document.getElementById('due_date').value = '<?= date('Y-m-d', strtotime('+7 days')) ?>';
-    // Generate fresh invoice number
-    document.getElementById('r-inv-num').textContent = 'INV-<?= date('Ymd') ?>-' + String(Math.floor(Math.random()*900)+100);
+    document.getElementById('invoice_date').value = '<?php echo date('Y-m-d'); ?>';
+    document.getElementById('due_date').value = '<?php echo date('Y-m-d', strtotime('+7 days')); ?>';
+    document.getElementById('r-inv-num').textContent = 'INV-<?php echo date('Ymd'); ?>-' + String(Math.floor(Math.random()*900)+100);
     updateReceipt();
 }
 
@@ -1225,16 +1036,38 @@ function printInvoice() {
     window.print();
 }
 
-// Generate random invoice number on page load
-document.getElementById('r-inv-num').textContent = 'INV-<?= date('Ymd') ?>-' + String(Math.floor(Math.random()*900)+100);
-
-// Event listener for discount
-document.getElementById('discount_input').addEventListener('input', function() {
-    updatePaidAmount();
-    updateReceipt();
+// Customer selection handler
+document.getElementById('customer_select').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const name = opt.dataset.name || '';
+    const email = opt.dataset.email || '';
+    const phone = opt.dataset.phone || '';
+    if (name) {
+        document.getElementById('customer-info').classList.add('show');
+        document.getElementById('ci-name').textContent = name;
+        document.getElementById('ci-email').textContent = email;
+        document.getElementById('ci-phone').textContent = phone;
+        document.getElementById('r-customer').textContent = name;
+        document.getElementById('r-customer-contact').textContent = (email ? email + '  ' : '') + (phone || '');
+    } else {
+        document.getElementById('customer-info').classList.remove('show');
+        document.getElementById('r-customer').textContent = '—';
+        document.getElementById('r-customer-contact').textContent = 'Select a customer';
+    }
 });
+document.getElementById('invoice_date').addEventListener('change', function() {
+    const d = new Date(this.value);
+    document.getElementById('r-idate').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+    document.getElementById('pi-date').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+});
+document.getElementById('due_date').addEventListener('change', function() {
+    const d = new Date(this.value);
+    document.getElementById('r-ddate').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+    document.getElementById('pi-due').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+});
+document.getElementById('discount_input').addEventListener('input', function() { updatePaidAmount(); updateReceipt(); });
 
-// Initialize
+// Initialise
 updateReceipt();
 </script>
 </body>

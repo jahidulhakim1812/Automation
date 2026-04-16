@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 24, 2026 at 09:09 AM
+-- Generation Time: Apr 16, 2026 at 07:34 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -43,6 +43,27 @@ INSERT INTO `admins` (`id`, `email`, `password`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `app_settings`
+--
+
+CREATE TABLE `app_settings` (
+  `setting_key` varchar(100) NOT NULL,
+  `setting_value` text NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `app_settings`
+--
+
+INSERT INTO `app_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
+('background_image', 'uploads/banner.jpg', '2026-04-16 17:32:39'),
+('dark_mode', '1', '2026-04-16 17:30:13'),
+('sidebar_labels', '{\"dashboard\":\"Dashboard\",\"account\":\"\",\"account_overview\":\"\",\"account_report\":\"\",\"change_password\":\"\",\"student_info\":\"\",\"add_student\":\"\",\"total_student_list\":\"\",\"student_form\":\"\",\"course_complete\":\"\",\"course_incomplete\":\"\",\"ongoing\":\"\",\"customers\":\"\",\"add_customer\":\"\",\"customer_list\":\"\",\"services\":\"\",\"manage_services\":\"\",\"assign_service\":\"\",\"delete\":\"\",\"report\":\"\",\"payment\":\"\",\"pos_invoice\":\"\",\"invoice_list\":\"\",\"print_invoice\":\"\",\"verify_invoice\":\"\",\"add_payment\":\"\",\"due_payment_list\":\"\",\"attendance\":\"\",\"take_attendance\":\"\",\"attendance_report\":\"\",\"certificate\":\"\",\"upload_certificate\":\"\",\"view_certificate\":\"\",\"video\":\"\",\"upload_video\":\"\",\"view_videos\":\"\",\"routine\":\"\"}', '2026-04-16 17:27:14');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `attendance_records`
 --
 
@@ -74,6 +95,53 @@ CREATE TABLE `certificates` (
 
 INSERT INTO `certificates` (`id`, `student_id`, `certificate_file`, `uploaded_at`) VALUES
 (1, 250402, 'yeasin-hossain.jpg', '2025-09-11 05:04:27');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `customers`
+--
+
+CREATE TABLE `customers` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `customers`
+--
+
+INSERT INTO `customers` (`id`, `name`, `email`, `phone`, `address`, `created_at`) VALUES
+(1, 'Md. Jahidul Hakim', 'mdjhk19@gmail.com', '01837090666', 'Dhaka,Gazipur,Boardbazar,National university,\r\nsouth khailkur,38no woard,sohid siddik road, holding no:446', '2026-04-12 17:36:02');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `customer_services`
+--
+
+CREATE TABLE `customer_services` (
+  `id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `service_id` int(11) NOT NULL,
+  `assigned_date` date DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `status` enum('pending','active','completed','cancelled') DEFAULT 'pending',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `customer_services`
+--
+
+INSERT INTO `customer_services` (`id`, `customer_id`, `service_id`, `assigned_date`, `start_date`, `end_date`, `status`, `notes`, `created_at`) VALUES
+(1, 1, 7, '2026-04-12', '2026-04-12', '2026-04-15', 'pending', '', '2026-04-12 17:39:14');
 
 -- --------------------------------------------------------
 
@@ -115,6 +183,43 @@ INSERT INTO `invoices` (`invoice_no`, `student_id`, `invoice_date`, `total_amoun
 ('INV-20260301121533', 260101, '2026-03-01 11:15:33', 0.00, 0.00, 0.00),
 ('INV-20260312114240', 260101, '2026-03-12 10:42:40', 0.00, 0.00, 0.00),
 ('INV-20260312161857', 250601, '2026-03-12 15:18:57', 0.00, 0.00, 0.00);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `invoices_new`
+--
+
+CREATE TABLE `invoices_new` (
+  `id` int(11) NOT NULL,
+  `invoice_number` varchar(20) DEFAULT NULL,
+  `customer_id` int(11) NOT NULL,
+  `invoice_date` date DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `subtotal` decimal(10,2) DEFAULT NULL,
+  `discount` decimal(10,2) DEFAULT 0.00,
+  `total` decimal(10,2) DEFAULT NULL,
+  `paid_amount` decimal(10,2) DEFAULT 0.00,
+  `notes` text DEFAULT NULL,
+  `status` enum('unpaid','paid','partial','cancelled') DEFAULT 'unpaid',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `invoice_items`
+--
+
+CREATE TABLE `invoice_items` (
+  `id` int(11) NOT NULL,
+  `invoice_id` int(11) NOT NULL,
+  `service_id` int(11) DEFAULT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `qty` int(11) DEFAULT 1,
+  `unit_price` decimal(10,2) DEFAULT NULL,
+  `total` decimal(10,2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -268,6 +373,22 @@ CREATE TABLE `student_routine` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `student_routine`
+--
+
+INSERT INTO `student_routine` (`id`, `student_id`, `day`, `start_time`, `end_time`, `instructor`, `computer_no`, `created_at`) VALUES
+(1, 250702, 'Monday', '10:00:00', '11:00:00', 'jahid', '02', '2026-04-12 15:09:57'),
+(2, 250802, 'Monday', '10:00:00', '11:00:00', '', '', '2026-04-12 15:14:28'),
+(3, 250802, 'Tuesday', '00:00:00', '01:00:00', '', '', '2026-04-12 15:16:33'),
+(4, 250803, 'Friday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:09'),
+(5, 250803, 'Saturday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
+(6, 250803, 'Sunday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
+(7, 250803, 'Monday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
+(8, 250803, 'Tuesday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
+(9, 250803, 'Wednesday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
+(10, 250803, 'Thursday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24');
+
 -- --------------------------------------------------------
 
 --
@@ -312,6 +433,12 @@ ALTER TABLE `admins`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `app_settings`
+--
+ALTER TABLE `app_settings`
+  ADD PRIMARY KEY (`setting_key`);
+
+--
 -- Indexes for table `attendance_records`
 --
 ALTER TABLE `attendance_records`
@@ -326,11 +453,41 @@ ALTER TABLE `certificates`
   ADD KEY `student_id` (`student_id`);
 
 --
+-- Indexes for table `customers`
+--
+ALTER TABLE `customers`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `customer_services`
+--
+ALTER TABLE `customer_services`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `customer_id` (`customer_id`),
+  ADD KEY `service_id` (`service_id`);
+
+--
 -- Indexes for table `invoices`
 --
 ALTER TABLE `invoices`
   ADD PRIMARY KEY (`invoice_no`),
   ADD KEY `student_id` (`student_id`);
+
+--
+-- Indexes for table `invoices_new`
+--
+ALTER TABLE `invoices_new`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `invoice_number` (`invoice_number`),
+  ADD KEY `customer_id` (`customer_id`);
+
+--
+-- Indexes for table `invoice_items`
+--
+ALTER TABLE `invoice_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `invoice_id` (`invoice_id`),
+  ADD KEY `service_id` (`service_id`);
 
 --
 -- Indexes for table `notices`
@@ -409,6 +566,30 @@ ALTER TABLE `certificates`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `customers`
+--
+ALTER TABLE `customers`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `customer_services`
+--
+ALTER TABLE `customer_services`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `invoices_new`
+--
+ALTER TABLE `invoices_new`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `invoice_items`
+--
+ALTER TABLE `invoice_items`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT for table `notices`
 --
 ALTER TABLE `notices`
@@ -442,7 +623,7 @@ ALTER TABLE `students`
 -- AUTO_INCREMENT for table `student_routine`
 --
 ALTER TABLE `student_routine`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -473,10 +654,30 @@ ALTER TABLE `certificates`
   ADD CONSTRAINT `certificates_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `customer_services`
+--
+ALTER TABLE `customer_services`
+  ADD CONSTRAINT `customer_services_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `customer_services_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `invoices`
 --
 ALTER TABLE `invoices`
   ADD CONSTRAINT `invoices_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `invoices_new`
+--
+ALTER TABLE `invoices_new`
+  ADD CONSTRAINT `invoices_new_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `invoice_items`
+--
+ALTER TABLE `invoice_items`
+  ADD CONSTRAINT `invoice_items_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoices_new` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `invoice_items_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `payment_history`

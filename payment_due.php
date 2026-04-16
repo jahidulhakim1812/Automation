@@ -1,23 +1,22 @@
 <?php
 session_start();
 
-// ✅ 1. Admin session check
-if (!isset($_SESSION["email"]) || $_SESSION["role"] !== "Admin") {
+// Admin session check
+if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
     header("Location: login.php");
     exit();
 }
 
-// ✅ 2. Load PHPMailer Library
+// Load PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-// Make sure the PHPMailer folder is in the same directory as this file
 require 'PHPMailer/Exception.php';
 require 'PHPMailer/PHPMailer.php';
 require 'PHPMailer/SMTP.php';
 
-// ✅ 3. Database Connection
+// Database connection
 $servername = "localhost";
 $username   = "root";
 $password   = "";
@@ -28,18 +27,13 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// ====================================================
-// ⚙️ EMAIL CONFIGURATION FUNCTION (SMTP)
-// ====================================================
+// Email function
 function sendDueEmail($to_email, $student_name, $due_amount) {
-    // 🔴 ENTER YOUR GMAIL DETAILS HERE 🔴
     $my_email    = 'artechsolution.online@gmail.com'; 
-    $app_password = 'giwr wrcr mnyi lkpf'; // Your 16-digit Google App Password
+    $app_password = 'giwr wrcr mnyi lkpf';
 
     $mail = new PHPMailer(true);
-
     try {
-        // Server settings
         $mail->isSMTP();
         $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
@@ -48,11 +42,9 @@ function sendDueEmail($to_email, $student_name, $due_amount) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
 
-        // Recipients
         $mail->setFrom($my_email, 'AR Tech Admin');
         $mail->addAddress($to_email, $student_name);
 
-        // Content
         $mail->isHTML(true);
         $mail->Subject = 'Payment Reminder: Due Balance Notification';
         $mail->Body    = "
@@ -68,43 +60,34 @@ function sendDueEmail($to_email, $student_name, $due_amount) {
         $mail->send();
         return true;
     } catch (Exception $e) {
-        return false; // Error message: $mail->ErrorInfo
+        return false;
     }
 }
 
-// ====================================================
-// ✅ 4. HANDLE FORM SUBMISSIONS (Send Email)
-// ====================================================
+// Handle single email
 $message_status = "";
-
-// A. Handle Single Email Send
 if (isset($_POST['send_single_email'])) {
     $email = $_POST['s_email'];
     $name  = $_POST['s_name'];
     $due   = $_POST['s_due'];
-
     if (sendDueEmail($email, $name, $due)) {
-        $message_status = "<div class='status-msg success'>✅ Email sent successfully to <b>$name</b>.</div>";
+        $message_status = "<div class='alert alert-success'>✅ Email sent successfully to <b>$name</b>.</div>";
     } else {
-        $message_status = "<div class='status-msg error'>❌ Failed to send email to <b>$name</b>. Check Internet or SMTP settings.</div>";
+        $message_status = "<div class='alert alert-error'>❌ Failed to send email to <b>$name</b>. Check SMTP settings.</div>";
     }
 }
 
-// B. Handle Bulk Email Send
+// Handle bulk email
 if (isset($_POST['send_bulk_emails'])) {
     $filter_cat = $conn->real_escape_string($_POST['filter_category']);
-    
     $email_sql = "SELECT name, email, course_fee, paid_fee FROM students 
                   WHERE course_fee > paid_fee 
                   AND (course_status = 'ongoing' OR course_status = 'finished')";
-    
     if (!empty($filter_cat)) {
         $email_sql .= " AND course_category LIKE '%$filter_cat%'";
     }
-
     $email_result = $conn->query($email_sql);
     $sent_count = 0;
-    
     if ($email_result->num_rows > 0) {
         while ($row = $email_result->fetch_assoc()) {
             $due = $row['course_fee'] - $row['paid_fee'];
@@ -112,29 +95,24 @@ if (isset($_POST['send_bulk_emails'])) {
                 $sent_count++;
             }
         }
-        $message_status = "<div class='status-msg success'>✅ Bulk Action: Sent $sent_count emails successfully.</div>";
+        $message_status = "<div class='alert alert-success'>✅ Bulk Action: Sent $sent_count emails successfully.</div>";
+    } else {
+        $message_status = "<div class='alert alert-warning'>⚠️ No due students found in selected category.</div>";
     }
 }
 
-// ====================================================
-// ✅ 5. SEARCH & DISPLAY LOGIC
-// ====================================================
+// Fetch due students with optional category filter
 $search_category = '';
 $sql_condition = "WHERE course_fee > paid_fee AND (course_status = 'ongoing' OR course_status = 'finished')";
-
 if (isset($_GET['category']) && !empty(trim($_GET['category']))) {
     $search_category = $conn->real_escape_string(trim($_GET['category']));
     $sql_condition .= " AND course_category LIKE '%$search_category%'";
 }
-
 $sql = "SELECT student_id, name, email, phone_number, course_category, course_fee, paid_fee, course_status
-        FROM students $sql_condition
-        ORDER BY name ASC";
-
+        FROM students $sql_condition ORDER BY name ASC";
 $result = $conn->query($sql);
 $rows = [];
 $total_due = 0;
-
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $row['due_amount'] = $row['course_fee'] - $row['paid_fee'];
@@ -143,207 +121,442 @@ if ($result && $result->num_rows > 0) {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Payment Due Students</title>
-    <style>
-         * { box-sizing: border-box; }
-     body { font-family: Arial, sans-serif; margin: 0; background-color: #f5f5f5; }
-    /* Navbar & Sidebar Styles */
-    .navbar { background-color: #1a1a1a; color: white; padding: 15px 30px; font-size: 22px; display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; }
-    .logout-btn { position: absolute; right: 10px; background: #c0392b; color: white; padding: 8px 15px; text-decoration: none; border-radius: 25px; font-size: 15px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Due Payment List — AR TECH SOLUTION</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: rgba(8,12,24,0.82);
+    --glass: rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.13);
+    --glass-hover: rgba(255,255,255,0.13);
+    --accent: #00e5c8;
+    --accent2: #7b5ea7;
+    --accent3: #ff6b6b;
+    --accent4: #ffd166;
+    --accent5: #06d6a0;
+    --text: #e8eaf0;
+    --muted: rgba(200,210,230,0.55);
+    --card-radius: 18px;
+    --sans: 'Plus Jakarta Sans', sans-serif;
+    --mono: 'Space Grotesk', sans-serif;
+    --nav-h: 64px;
+    --sidebar-w: 230px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
 
-    .side-nav { position: fixed; top: 60px; left: 0; width: 220px; height: calc(100% - 60px); background-color: #2c3e50; padding-top: 20px; z-index: 999; display: flex; flex-direction: column; overflow-y: auto; transition: transform 0.3s; }
-    .side-nav.collapsed { transform: translateX(-220px); }
-    .side-nav a, .menu-toggle { color: white; text-decoration: none; padding: 12px 25px; width: 100%; font-weight: bold; cursor: pointer; display:block; }
-    .side-nav a:hover, .menu-toggle:hover { background-color: #34495e; border-left: 4px solid #1abc9c; }
-    .menu-group { width: 100%; }
-    .submenu { display: none; flex-direction: column; background-color: #34495e; }
-    .submenu a { font-weight: normal; padding-left: 40px; }
-    .menu-group.active .submenu { display: flex; }
-    
-    .toggle-arrow { position: fixed; top: 70px; left: 220px; background-color: #1abc9c; color: white; padding: 6px 10px; cursor: pointer; z-index: 1001; transition: left 0.3s; }
-    .toggle-arrow.collapsed { left: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* Content Styles */
-    .container { margin-left: 240px; padding: 130px 30px 100px; transition: margin-left 0.3s; }
-    .container.collapsed { margin-left: 30px; }
+body {
+    font-family: var(--sans);
+    color: var(--text);
+    min-height: 100vh;
+    background: url('uploads/banner.jpg') no-repeat center center fixed;
+    background-size: cover;
+    overflow-x: hidden;
+}
 
-    h2 { text-align: center; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px; }
-    th { background: #e74c3c; color: #fff; }
-    tr:nth-child(even) { background: #f9f9f9; }
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg,rgba(8,10,30,0.88) 0%,rgba(15,20,50,0.78) 50%,rgba(5,15,35,0.85) 100%);
+    z-index: 0;
+    pointer-events: none;
+}
 
-    /* Action Bar */
-    .action-bar { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; }
-    .search-input { padding: 8px; width: 250px; border: 1px solid #ccc; }
-    .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
-    .btn-search { background: #2c3e50; }
-    .btn-bulk { background: #d35400; }
-    
-    /* Individual Send Button */
-    .btn-single { background: #27ae60; padding: 5px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; color: white; border: none; }
-    .btn-single:hover { background: #219150; }
+/* TOP NAV */
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+    background: rgba(8,10,28,0.85);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    z-index: 1100;
+}
+.topnav-brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 18px; font-weight: 700;
+    letter-spacing: 0.5px; color: #fff;
+}
+.topnav-brand span { color: var(--accent); }
+.brand-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+.topnav-right { display: flex; align-items: center; gap: 14px; }
+.topnav-time { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.logout-btn {
+    background: linear-gradient(135deg,#e74c3c,#c0392b);
+    color: #fff; padding: 7px 20px; border-radius: 40px;
+    text-decoration: none; font-size: 13px; font-weight: 700;
+    transition: opacity .2s; border: none; cursor: pointer;
+}
+.logout-btn:hover { opacity: .85; }
+.hamburger {
+    background: none; border: none; color: var(--text);
+    font-size: 22px; cursor: pointer; display: none; padding: 4px;
+}
 
-    .status-msg { padding: 15px; margin-bottom: 20px; text-align: center; border-radius: 5px; font-weight: bold; }
-    .status-msg.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .status-msg.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    
-    .footer { background-color: #1a1a1a; color: white; text-align: center; padding: 15px; position: fixed; bottom: 0; left: 0; width: 100%; }
-    </style>
+/* SIDEBAR */
+.sidebar {
+    position: fixed; top: var(--nav-h); left: 0;
+    width: var(--sidebar-w); height: calc(100vh - var(--nav-h));
+    background: #08121e;
+    border-right: 1px solid var(--glass-border);
+    overflow-y: auto; overflow-x: hidden;
+    z-index: 1050;
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    padding-bottom: 40px;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
+.sidebar.collapsed { transform: translateX(-100%); }
+.sidebar a, .menu-toggle {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--muted); text-decoration: none;
+    padding: 11px 20px; font-size: 13.5px; font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all .2s; cursor: pointer; user-select: none;
+    white-space: nowrap;
+}
+.sidebar a:hover, .menu-toggle:hover { color: #fff; background: var(--glass); border-left-color: var(--accent); }
+.sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,200,0.07); }
+.submenu { display: none; flex-direction: column; background: rgba(0,0,0,0.2); }
+.submenu a { padding: 9px 20px 9px 38px; font-size: 13px; }
+.menu-group.open .submenu { display: flex; }
+.menu-arrow { margin-left: auto; font-size: 11px; transition: transform .25s; }
+.menu-group.open .menu-arrow { transform: rotate(180deg); }
+.sidebar-divider { height: 1px; background: var(--glass-border); margin: 10px 16px; }
+
+/* SIDEBAR TOGGLE PILL */
+.sidebar-toggle-pill {
+    position: fixed; top: calc(var(--nav-h) + 16px); left: var(--sidebar-w);
+    width: 24px; height: 44px; background: var(--accent);
+    border-radius: 0 10px 10px 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 1060; font-size: 13px; color: #000;
+    font-weight: 900; transition: left .3s cubic-bezier(.4,0,.2,1), background .2s;
+}
+.sidebar-toggle-pill:hover { background: #00c9b0; }
+.sidebar-toggle-pill.collapsed { left: 0; }
+
+/* MAIN CONTENT */
+.main {
+    margin-left: var(--sidebar-w);
+    padding: calc(var(--nav-h) + 24px) 24px 80px;
+    position: relative; z-index: 1;
+    transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+    min-height: 100vh;
+}
+.main.collapsed { margin-left: 0; }
+
+/* SECTION TITLE */
+.section-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px; color: var(--accent);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+
+/* ACTION BAR CARD */
+.action-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    padding: 20px;
+    margin-bottom: 28px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.search-form, .bulk-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.search-form input, .search-form button, .bulk-form button {
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    outline: none;
+}
+.search-form input {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+    min-width: 200px;
+}
+.search-form input:focus {
+    border-color: var(--accent);
+}
+.search-form button, .bulk-form button {
+    background: linear-gradient(135deg, var(--accent), #00c9b0);
+    border: none;
+    color: #000;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .2s;
+}
+.bulk-form button {
+    background: linear-gradient(135deg, #d35400, #e67e22);
+    color: white;
+}
+.search-form button:hover, .bulk-form button:hover { opacity: .85; }
+
+/* TABLE CARD */
+.table-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    padding: 20px;
+    overflow-x: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+th, td {
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--glass-border);
+}
+th {
+    background: rgba(0,0,0,0.3);
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 11px;
+}
+td {
+    color: var(--text);
+}
+tr:hover td {
+    background: rgba(255,255,255,0.03);
+}
+.due-amount {
+    color: var(--accent3);
+    font-weight: 700;
+}
+.btn-single {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+}
+.btn-single:hover { opacity: .85; }
+.total-due {
+    text-align: right;
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--accent3);
+}
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+}
+
+/* ALERTS */
+.alert {
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+.alert-success {
+    background: rgba(6,214,160,0.15);
+    border: 1px solid var(--accent5);
+    color: var(--accent5);
+}
+.alert-error {
+    background: rgba(255,107,107,0.15);
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+}
+.alert-warning {
+    background: rgba(255,209,102,0.15);
+    border: 1px solid var(--accent4);
+    color: var(--accent4);
+}
+
+/* FOOTER */
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(6,8,20,0.9);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--glass-border);
+    text-align: center;
+    padding: 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+    z-index: 900;
+}
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .sidebar-toggle-pill { display: none; }
+    .hamburger { display: block; }
+    .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
+    .action-card { flex-direction: column; align-items: stretch; }
+    .search-form, .bulk-form { justify-content: center; }
+    th, td { padding: 8px 6px; font-size: 11px; }
+    .total-due { font-size: 14px; }
+}
+</style>
 </head>
 <body>
 
-<div class="navbar"><span>AR TECH SOLUTION</span><a href="logout.php" class="logout-btn">Logout</a></div>
-
-<div class="side-nav" id="sidebar">
-    <a href="dashboard.php">📊 Dashboard</a>
-
-    <div class="menu-group">
-        <div class="menu-toggle">💵 Account ▾</div>
-        <div class="submenu">
-            <a href="account.php">Account Overview</a>
-            <a href="account_report.php">Account Report</a>
-            <a href="change_password.php">Change Password</a>
+<!-- TOP NAVIGATION -->
+<nav class="topnav">
+    <div style="display:flex;align-items:center;gap:14px;">
+        <button class="hamburger" id="hamburgerBtn">☰</button>
+        <div class="topnav-brand">
+            <div class="brand-dot"></div>
+            <span>AR TECH</span> SOLUTION
         </div>
     </div>
-
-    <div class="menu-group">
-        <div class="menu-toggle">👤 Student Information ▾</div>
-        <div class="submenu horizontal-submenu">
-            <a href="insert.php">Add Student</a>
-            <a href="student_list.php">Total Student List</a>
-            <a href="form_view.php">Student Form</a>
-            <a href="completed_students.php">Course Complete</a>
-            <a href="incomplete_students.php">Course Incomplete</a>
-            <a href="ongoing_students.php">Ongoing</a>
-        </div>
+    <div class="topnav-right">
+        <div class="topnav-time" id="liveClock"></div>
+        <a href="logout.php" class="logout-btn">Logout</a>
     </div>
+</nav>
 
-    <a href="delete.php">🗑️ Delete</a>
-    <a href="report.php">📄 Report</a>
+<!-- SIDEBAR (modern dashboard) -->
+<?php
+include 'navigation.php';
+?>
 
-    <div class="menu-group">
-        <div class="menu-toggle">💵 Payment ▾</div>
-        <div class="submenu horizontal-submenu">
-            <a href="invoice.php">Print Invoice</a>
-            <a href="view_invoice.php">Verify Invoice</a>
-            <a href="input_payment.php">Add Payment</a>
-            <a href="payment_due.php">Due Payment List</a>
-        </div>
-    </div>
+<div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
-    <div class="menu-group">
-        <div class="menu-toggle">📆 Attendance ▾</div>
-        <div class="submenu">
-            <a href="attendance.php">Take Attendance</a>
-            <a href="attendance_report.php">View attendance Report</a>
-        </div>
-    </div>
+<!-- MAIN CONTENT -->
+<main class="main" id="mainContent">
+    <div class="section-title">💰 Due Payment List & Email Sender</div>
 
-    <div class="menu-group">
-        <div class="menu-toggle">📜 Certificate ▾</div>
-        <div class="submenu">
-            <a href="upload_certificate.php">Upload Certificate</a>
-            <a href="certificate_list.php">View Certificate</a>
-        </div>
-    </div>
+    <?php if ($message_status) echo $message_status; ?>
 
-    <div class="menu-group">
-        <div class="menu-toggle">🎬 Video ▾</div>
-        <div class="submenu">
-            <a href="upload_video.php">Upload Video</a>
-            <a href="view_videos.php">View Videos</a>
-        </div>
-    </div>
-
-    <a href="routine_generator.php">🕒 Routine</a>
-    
-    <a href="account_info.php">🕒 Account</a>
-</div>
-
-<div class="toggle-arrow" id="toggleBtn">◀</div>
-
-
-<div class="container" id="mainContent">
-    <h2>💰 Payment Due List & Email Sender</h2>
-
-    <?= $message_status ?>
-
-    <div class="action-bar">
-        <form method="get">
-            <input type="text" name="category" class="search-input" placeholder="Filter by Category" value="<?= htmlspecialchars($search_category) ?>">
-            <button type="submit" class="btn btn-search">🔍 Search</button>
+    <div class="action-card">
+        <form method="get" class="search-form">
+            <input type="text" name="category" placeholder="Filter by Course Category" value="<?php echo htmlspecialchars($search_category); ?>">
+            <button type="submit">🔍 Search</button>
         </form>
-
         <?php if (!empty($rows)): ?>
-            <form method="post" onsubmit="return confirm('Send emails to ALL <?= count($rows) ?> students?');">
-                <input type="hidden" name="filter_category" value="<?= htmlspecialchars($search_category) ?>">
-                <button type="submit" name="send_bulk_emails" class="btn btn-bulk">📧 Email All Visible</button>
-            </form>
+        <form method="post" class="bulk-form" onsubmit="return confirm('Send reminder emails to ALL <?php echo count($rows); ?> students?');">
+            <input type="hidden" name="filter_category" value="<?php echo htmlspecialchars($search_category); ?>">
+            <button type="submit" name="send_bulk_emails">📧 Email All Visible</button>
+        </form>
         <?php endif; ?>
     </div>
 
-    <?php if (!empty($rows)): ?>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Course</th>
-                    <th>Status</th>
-                    <th>Due Amount</th>
-                    <th>Action</th> </tr>
-            </thead>
-            <tbody>
-                <?php foreach($rows as $row): ?>
-                <tr>
-                    <td><?= htmlspecialchars($row['student_id']) ?></td>
-                    <td><?= htmlspecialchars($row['name']) ?></td>
-                    <td><?= htmlspecialchars($row['email']) ?></td>
-                    <td><?= htmlspecialchars($row['course_category']) ?></td>
-                    <td><?= ucfirst($row['course_status']) ?></td>
-                    <td style="color:red; font-weight:bold;"><?= $row['due_amount'] ?> TK</td>
-                    
-                    <td>
-                        <form method="post">
-                            <input type="hidden" name="s_email" value="<?= $row['email'] ?>">
-                            <input type="hidden" name="s_name" value="<?= $row['name'] ?>">
-                            <input type="hidden" name="s_due" value="<?= $row['due_amount'] ?>">
-                            <button type="submit" name="send_single_email" class="btn-single">📩 Send Email</button>
-                        </form>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-        <h3 style="text-align:right; color:#c0392b;">Total Due: <?= number_format($total_due) ?> TK</h3>
-    <?php else: ?>
-        <p style="text-align:center;">✅ No payment due students found.</p>
-    <?php endif; ?>
+    <div class="table-card">
+        <?php if (!empty($rows)): ?>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Name</th><th>Email</th><th>Course</th><th>Status</th>
+                            <th>Due Amount</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($rows as $row): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($row['student_id']); ?></td>
+                            <td><?php echo htmlspecialchars($row['name']); ?></td>
+                            <td><?php echo htmlspecialchars($row['email']); ?></td>
+                            <td><?php echo htmlspecialchars($row['course_category']); ?></td>
+                            <td><?php echo ucfirst($row['course_status']); ?></td>
+                            <td><span class="due-amount">৳ <?php echo number_format($row['due_amount'], 2); ?></span></td>
+                            <td>
+                                <form method="post" style="margin:0;">
+                                    <input type="hidden" name="s_email" value="<?php echo htmlspecialchars($row['email']); ?>">
+                                    <input type="hidden" name="s_name" value="<?php echo htmlspecialchars($row['name']); ?>">
+                                    <input type="hidden" name="s_due" value="<?php echo $row['due_amount']; ?>">
+                                    <button type="submit" name="send_single_email" class="btn-single">📩 Send Email</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <div class="total-due">Total Due: ৳ <?php echo number_format($total_due, 2); ?></div>
+        <?php else: ?>
+            <div class="no-data">✅ No payment due students found.</div>
+        <?php endif; ?>
+    </div>
+</main>
+
+<div class="footer">
+    &copy; <?php echo date("Y"); ?> AR TECH SOLUTION — Freelancing Student Management System
 </div>
 
-<div class="footer">&copy; <?= date("Y") ?> Freelancing Management System</div>
-
 <script>
+// Sidebar toggle (desktop)
 const sidebar = document.getElementById('sidebar');
-const toggleBtn = document.getElementById('toggleBtn');
+const toggleBtn = document.getElementById('sidebarToggle');
 const mainContent = document.getElementById('mainContent');
-toggleBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('collapsed');
-    toggleBtn.classList.toggle('collapsed');
-    mainContent.classList.toggle('collapsed');
-    toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
-});
-document.querySelectorAll('.menu-toggle').forEach(toggle => {
-    toggle.addEventListener('click', () => toggle.parentElement.classList.toggle('active'));
-});
-</script>
 
+if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        toggleBtn.classList.toggle('collapsed');
+        mainContent.classList.toggle('collapsed');
+        toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    });
+}
+
+// Hamburger (mobile)
+const hamburger = document.getElementById('hamburgerBtn');
+if (hamburger) {
+    hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('mobile-open');
+    });
+}
+
+// Submenu toggles
+document.querySelectorAll('.menu-toggle').forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = toggle.closest('.menu-group');
+        if (group) group.classList.toggle('open');
+    });
+});
+
+// Live clock
+function updateClock() {
+    const clockEl = document.getElementById('liveClock');
+    if (clockEl) {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    }
+}
+updateClock();
+setInterval(updateClock, 1000);
+</script>
 </body>
 </html>
