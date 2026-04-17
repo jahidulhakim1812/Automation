@@ -60,7 +60,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo "<script>alert('Error: " . $conn->error . "');</script>";
     }
 }
+ 
 $conn->close();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">

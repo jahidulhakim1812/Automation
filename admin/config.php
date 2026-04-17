@@ -31,4 +31,16 @@ function get_sidebar_label($key, $default) {
            ? htmlspecialchars($sidebar_labels[$key]) 
            : $default;
 }
+function logAdminActivity($action, $details = '') {
+    global $conn;
+    $admin_email = $_SESSION['email'] ?? 'unknown';
+    $admin_name = $_SESSION['name'] ?? '';
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    
+    $stmt = $conn->prepare("INSERT INTO admin_activity_log (admin_email, admin_name, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssss", $admin_email, $admin_name, $action, $details, $ip, $user_agent);
+    $stmt->execute();
+    $stmt->close();
+}
 ?>

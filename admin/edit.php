@@ -68,6 +68,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["original_student_id"]
     }
 }
 
+
 $conn->close();
 ?>
 <!DOCTYPE html>

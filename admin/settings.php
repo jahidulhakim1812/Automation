@@ -10,7 +10,70 @@ require_once 'config.php';
 $message = "";
 $error = "";
 
-// Handle form submissions
+// Fetch current admin info using session email
+$admin_email = $_SESSION['email'];
+$admin_info = null;
+$stmt = $conn->prepare("SELECT name, email, profile_image FROM admins WHERE email = ?");
+$stmt->bind_param("s", $admin_email);
+$stmt->execute();
+$result = $stmt->get_result();
+if ($result->num_rows > 0) {
+    $admin_info = $result->fetch_assoc();
+}
+$stmt->close();
+
+// Handle profile update
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
+    $new_name = trim($_POST['admin_name']);
+    if (empty($new_name)) {
+        $error = "Name cannot be empty.";
+    } else {
+        // Update name
+        $stmt = $conn->prepare("UPDATE admins SET name = ? WHERE email = ?");
+        $stmt->bind_param("ss", $new_name, $admin_email);
+        $stmt->execute();
+        $stmt->close();
+        
+        // Handle profile image upload
+        $profile_image = $admin_info['profile_image'] ?? '';
+        if (isset($_FILES['admin_photo']) && $_FILES['admin_photo']['error'] == 0) {
+            $target_dir = "uploads/admins/";
+            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+            $file_ext = strtolower(pathinfo($_FILES['admin_photo']['name'], PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            if (in_array($file_ext, $allowed)) {
+                $new_filename = time() . "_" . preg_replace('/[^a-zA-Z0-9]/', '_', $admin_email) . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
+                if (move_uploaded_file($_FILES['admin_photo']['tmp_name'], $target_file)) {
+                    // Delete old photo if exists and not default
+                    if (!empty($admin_info['profile_image']) && file_exists($target_dir . $admin_info['profile_image'])) {
+                        unlink($target_dir . $admin_info['profile_image']);
+                    }
+                    $profile_image = $new_filename;
+                    $stmt_img = $conn->prepare("UPDATE admins SET profile_image = ? WHERE email = ?");
+                    $stmt_img->bind_param("ss", $profile_image, $admin_email);
+                    $stmt_img->execute();
+                    $stmt_img->close();
+                } else {
+                    $error = "Failed to upload image.";
+                }
+            } else {
+                $error = "Invalid file type. Only JPG, PNG, GIF, WEBP allowed.";
+            }
+        }
+        if (empty($error)) {
+            $message = "Profile updated successfully!";
+            // Refresh admin info
+            $stmt = $conn->prepare("SELECT name, email, profile_image FROM admins WHERE email = ?");
+            $stmt->bind_param("s", $admin_email);
+            $stmt->execute();
+            $admin_info = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+        }
+    }
+}
+
+// Handle other settings (dark mode, sidebar labels, background) as before
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Dark mode
     if (isset($_POST['update_dark_mode'])) {
@@ -28,7 +91,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Sidebar labels
     if (isset($_POST['update_sidebar_labels'])) {
         $labels = [];
-        // Collect all posted label fields
         foreach ($_POST as $key => $value) {
             if (strpos($key, 'label_') === 0) {
                 $labels[substr($key, 6)] = trim($value);
@@ -39,7 +101,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->bind_param("s", $json);
         if ($stmt->execute()) {
             $message = "Sidebar labels updated successfully.";
-            // Refresh sidebar_labels for current page
             $sidebar_labels = $labels;
         } else {
             $error = "Failed to save sidebar labels.";
@@ -375,6 +436,19 @@ body.dark-mode::before {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 12px;
 }
+.profile-preview {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+}
+.profile-preview img {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+}
 .footer {
     position: fixed;
     bottom: 0;
@@ -397,6 +471,7 @@ body.dark-mode::before {
     .hamburger { display: block; }
     .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
     .sidebar-labels-grid { grid-template-columns: 1fr; }
+    .profile-preview { flex-direction: column; align-items: center; text-align: center; }
 }
 </style>
 </head>
@@ -418,9 +493,7 @@ body.dark-mode::before {
 </nav>
 
 <!-- SIDEBAR (dynamic labels) -->
-<?php
-include 'navigation.php';
-?>
+<?php include 'navigation.php'; ?>
 
 <div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
@@ -432,6 +505,38 @@ include 'navigation.php';
         <?php if ($error): ?>
             <div class="message error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
+
+        <!-- Admin Profile Section -->
+        <div class="card">
+            <h2>👤 Admin Profile</h2>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" name="admin_name" value="<?php echo htmlspecialchars($admin_info['name'] ?? ''); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" value="<?php echo htmlspecialchars($admin_info['email'] ?? ''); ?>" disabled readonly style="opacity:0.7; cursor:not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Profile Photo</label>
+                    <input type="file" name="admin_photo" accept="image/*">
+                    <div class="profile-preview">
+                        <?php 
+                        $photo_path = 'uploads/admins/' . ($admin_info['profile_image'] ?? '');
+                        $default_avatar = 'uploads/default-avatar.png';
+                        if (!empty($admin_info['profile_image']) && file_exists($photo_path)) {
+                            echo '<img src="' . $photo_path . '" alt="Profile">';
+                        } else {
+                            echo '<img src="' . $default_avatar . '" alt="Default Avatar" onerror="this.src=\'https://via.placeholder.com/70?text=Admin\'">';
+                        }
+                        ?>
+                        <span style="font-size:13px; color:var(--muted);">Allowed: JPG, PNG, GIF, WEBP</span>
+                    </div>
+                </div>
+                <button type="submit" name="update_profile" class="submit-btn">Update Profile</button>
+            </form>
+        </div>
 
         <!-- Dark Mode Section -->
         <div class="card">

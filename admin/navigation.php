@@ -102,5 +102,15 @@
         </div>
     </div>
 
-    <a href="settings.php"><?php echo get_sidebar_label('settings', 'Settings'); ?></a>
+     <!-- Ip track  -->
+    <div class="menu-group">
+        <div class="menu-toggle"><?php echo get_sidebar_label('iplocator', '📍 IP Geolocation'); ?> <span class="menu-arrow">▾</span></div>
+        <div class="submenu">
+            <a href="admin_logs.php" class="active"><?php echo get_sidebar_label('admin_logs', 'Activity Log'); ?></a>
+    <a href="ip_locator.php" class="active"><?php echo get_sidebar_label('ip_locator', 'IP Locator'); ?></a>
+        </div>
+    </div>
+
+    <a href="settings.php"><?php echo get_sidebar_label('settings', '⚙️ Settings'); ?></a>
+    
 </aside>
