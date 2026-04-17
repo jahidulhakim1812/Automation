@@ -79,13 +79,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_service'])) {
     }
 }
 
-// Delete
+// Delete (restored)
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
     $stmt = $conn->prepare("DELETE FROM services WHERE id=?");
     $stmt->bind_param("i", $id);
-    if ($stmt->execute()) $message = "Service deleted successfully!";
-    else $error = "Error deleting service.";
+    if ($stmt->execute()) {
+        $message = "Service deleted successfully!";
+        // Redirect to refresh the page and avoid resubmission
+        header("Location: services.php?msg=" . urlencode($message));
+        exit();
+    } else {
+        $error = "Error deleting service.";
+    }
     $stmt->close();
 }
 
@@ -118,6 +124,12 @@ if (isset($_GET['edit'])) {
         if ($svc['id'] == $edit_id) { $edit_service = $svc; break; }
     }
 }
+
+// Check for success message from redirect
+if (isset($_GET['msg'])) {
+    $message = htmlspecialchars($_GET['msg']);
+}
+
 $conn->close();
 ?>
 <!DOCTYPE html>
