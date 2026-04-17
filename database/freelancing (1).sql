@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 17, 2026 at 12:45 PM
+-- Generation Time: Apr 17, 2026 at 04:04 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -30,15 +30,45 @@ SET time_zone = "+00:00";
 CREATE TABLE `admins` (
   `id` int(11) NOT NULL,
   `email` varchar(100) DEFAULT NULL,
-  `password` varchar(100) DEFAULT NULL
+  `password` varchar(100) DEFAULT NULL,
+  `profile_image` varchar(255) DEFAULT NULL,
+  `name` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `admins`
 --
 
-INSERT INTO `admins` (`id`, `email`, `password`) VALUES
-(1, '22303070@iubat.edu', 'admin123');
+INSERT INTO `admins` (`id`, `email`, `password`, `profile_image`, `name`) VALUES
+(1, '22303070@iubat.edu', 'admin123', '1776431037_22303070_iubat_edu.jpg', 'Jahid');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_activity_log`
+--
+
+CREATE TABLE `admin_activity_log` (
+  `id` int(11) NOT NULL,
+  `admin_email` varchar(100) NOT NULL,
+  `admin_name` varchar(100) DEFAULT NULL,
+  `action` varchar(100) NOT NULL,
+  `details` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `admin_activity_log`
+--
+
+INSERT INTO `admin_activity_log` (`id`, `admin_email`, `admin_name`, `action`, `details`, `ip_address`, `user_agent`, `created_at`) VALUES
+(1, '22303070@iubat.edu', '', 'Student Added', 'Added new student ID: , Name: , Course: ', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', '2026-04-17 13:15:28'),
+(2, '22303070@iubat.edu', '', 'Student Added', 'Added new student ID: , Name: , Course: ', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', '2026-04-17 13:15:30'),
+(3, '22303070@iubat.edu', '', 'Student Added', 'Added new student ID: , Name: , Course: ', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', '2026-04-17 13:15:31'),
+(4, '22303070@iubat.edu', '', 'Student Added', 'Added new student ID: , Name: , Course: ', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', '2026-04-17 13:15:34'),
+(5, '22303070@iubat.edu', '', 'Student Added', 'Added new student ID: , Name: , Course: ', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', '2026-04-17 13:15:41');
 
 -- --------------------------------------------------------
 
@@ -58,8 +88,8 @@ CREATE TABLE `app_settings` (
 
 INSERT INTO `app_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
 ('background_image', 'uploads/banner.jpg', '2026-04-17 08:43:09'),
-('dark_mode', '1', '2026-04-17 09:45:51'),
-('sidebar_labels', '{\"dashboard\":\"Dashboard\",\"account\":\"\",\"account_overview\":\"\",\"account_report\":\"\",\"change_password\":\"\",\"student_info\":\"\",\"add_student\":\"\",\"total_student_list\":\"\",\"student_form\":\"\",\"course_complete\":\"\",\"course_incomplete\":\"\",\"ongoing\":\"\",\"customers\":\"\",\"add_customer\":\"\",\"customer_list\":\"\",\"services\":\"\",\"manage_services\":\"\",\"assign_service\":\"\",\"delete\":\"\",\"report\":\"\",\"payment\":\"\",\"pos_invoice\":\"\",\"invoice_list\":\"\",\"print_invoice\":\"\",\"verify_invoice\":\"\",\"add_payment\":\"\",\"due_payment_list\":\"\",\"attendance\":\"\",\"take_attendance\":\"\",\"attendance_report\":\"\",\"certificate\":\"\",\"upload_certificate\":\"\",\"view_certificate\":\"\",\"video\":\"\",\"upload_video\":\"\",\"view_videos\":\"\",\"routine\":\"\"}', '2026-04-17 06:07:28');
+('dark_mode', '1', '2026-04-17 12:37:30'),
+('sidebar_labels', '{\"dashboard\":\"Dashboard\",\"account\":\"\",\"account_overview\":\"\",\"account_report\":\"\",\"change_password\":\"\",\"student_info\":\"\",\"add_student\":\"\",\"total_student_list\":\"\",\"student_form\":\"\",\"course_complete\":\"\",\"course_incomplete\":\"\",\"ongoing\":\"\",\"customers\":\"\",\"add_customer\":\"\",\"customer_list\":\"\",\"services\":\"\",\"manage_services\":\"\",\"assign_service\":\"\",\"delete\":\"\",\"report\":\"\",\"payment\":\"\",\"pos_invoice\":\"\",\"invoice_list\":\"\",\"print_invoice\":\"\",\"verify_invoice\":\"\",\"add_payment\":\"\",\"due_payment_list\":\"\",\"attendance\":\"\",\"take_attendance\":\"\",\"attendance_report\":\"\",\"certificate\":\"\",\"upload_certificate\":\"\",\"view_certificate\":\"\",\"video\":\"\",\"upload_video\":\"\",\"view_videos\":\"\",\"routine\":\"\"}', '2026-04-17 12:36:56');
 
 -- --------------------------------------------------------
 
@@ -474,6 +504,12 @@ ALTER TABLE `admins`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `admin_activity_log`
+--
+ALTER TABLE `admin_activity_log`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `app_settings`
 --
 ALTER TABLE `app_settings`
@@ -599,6 +635,12 @@ ALTER TABLE `videos`
 --
 ALTER TABLE `admins`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `admin_activity_log`
+--
+ALTER TABLE `admin_activity_log`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `attendance_records`
