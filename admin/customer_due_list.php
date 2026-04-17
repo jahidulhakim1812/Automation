@@ -303,6 +303,14 @@ body::before {
 }
 .main.collapsed { margin-left: 0; }
 
+/* SECTION TITLE */
+.section-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px; color: var(--accent);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+
 /* SEARCH & BULK CARD */
 .action-card {
     background: var(--glass);
@@ -324,7 +332,10 @@ body::before {
     background: rgba(255,255,255,0.08);
     border: 1px solid var(--glass-border);
     border-radius: 30px;
-    color: #fff;
+    color: #f0f0f0;
+}
+.search-form input:focus {
+    border-color: var(--accent);
 }
 .search-form button {
     padding: 10px 24px;
@@ -334,6 +345,13 @@ body::before {
     color: #000;
     font-weight: 700;
     cursor: pointer;
+}
+.search-form a {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    text-decoration: none;
 }
 .bulk-form {
     margin-top: 16px;
@@ -347,7 +365,7 @@ body::before {
     background: rgba(255,255,255,0.08);
     border: 1px solid var(--glass-border);
     border-radius: 10px;
-    color: #fff;
+    color: #f0f0f0;
 }
 .bulk-form button {
     background: linear-gradient(135deg, #d35400, #e67e22);
@@ -380,7 +398,7 @@ th {
     font-size: 11px;
 }
 td {
-    color: #fff;
+    color: #ffffff !important;
 }
 .due-amount {
     color: var(--accent3);
@@ -442,7 +460,7 @@ td {
     .hamburger { display: block; }
     .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
     .search-form { flex-direction: column; }
-    .search-form button { width: 100%; }
+    .search-form button, .search-form a { width: 100%; text-align: center; }
 }
 </style>
 </head>
@@ -460,9 +478,7 @@ td {
 </nav>
 
 <!-- SIDEBAR (dynamic labels) -->
-<?php
-include 'navigation.php';
-?>
+<?php include 'navigation.php'; ?>
 
 <div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
@@ -475,7 +491,7 @@ include 'navigation.php';
             <input type="text" name="search" placeholder="Search by Customer Name or Invoice Number" value="<?php echo htmlspecialchars($search); ?>">
             <button type="submit">🔍 Search</button>
             <?php if ($search): ?>
-                <a href="customer_due_list.php" style="background:#e74c3c; color:#fff; padding:10px 20px; border-radius:30px; text-decoration:none;">Clear</a>
+                <a href="customer_due_list.php">Clear</a>
             <?php endif; ?>
         </form>
 

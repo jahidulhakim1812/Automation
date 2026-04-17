@@ -44,6 +44,7 @@
             <a href="invoice_list.php"><?php echo get_sidebar_label('invoice_list', 'Invoice List'); ?></a>
             <a href="customer_due_list.php"><?php echo get_sidebar_label('customer_due_list', 'Customer Due List'); ?></a>
             <a href="customer_payment.php"><?php echo get_sidebar_label('customer_payments', 'Customer Payments'); ?></a>
+             <a href="customer_purchases.php"><?php echo get_sidebar_label('customer_purchases', 'Customer Purchases'); ?></a>
         </div>
     </div>
 

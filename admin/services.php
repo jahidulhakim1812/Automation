@@ -5,7 +5,7 @@ if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
     exit();
 }
 
-require_once 'config.php';   // <-- ADD THIS LINE
+require_once 'config.php';
 
 // Ensure services table exists
 $conn->query("CREATE TABLE IF NOT EXISTS services (
@@ -135,17 +135,15 @@ $conn->close();
         background-position: center;
         font-family: var(--sans);
     }
-    /* Keep all your existing styles */
-    /* Dark mode overrides */
-body.dark-mode {
-    --bg: rgba(0,0,0,0.9);
-    --glass: rgba(0,0,0,0.5);
-    --glass-border: rgba(255,255,255,0.1);
-    --text: #e0e0e0;
-}
-body.dark-mode::before {
-    background: rgba(0,0,0,0.85);
-}
+    body.dark-mode {
+        --bg: rgba(0,0,0,0.9);
+        --glass: rgba(0,0,0,0.5);
+        --glass-border: rgba(255,255,255,0.1);
+        --text: #e0e0e0;
+    }
+    body.dark-mode::before {
+        background: rgba(0,0,0,0.85);
+    }
 </style>
 <style>
 :root {
@@ -169,8 +167,6 @@ body.dark-mode::before {
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-
 
 body::before {
     content: '';
@@ -205,7 +201,7 @@ body::before {
     background: linear-gradient(135deg,#e74c3c,#c0392b);
     color: #fff; padding: 7px 20px; border-radius: 40px;
     text-decoration: none; font-size: 13px; font-weight: 700;
-    transition: opacity .2s; border: none; cursor: pointer;
+    transition: opacity .2s;
 }
 .logout-btn:hover { opacity: .85; }
 .hamburger {
@@ -219,22 +215,19 @@ body::before {
     width: var(--sidebar-w); height: calc(100vh - var(--nav-h));
     background: #08121e;
     border-right: 1px solid var(--glass-border);
-    overflow-y: auto; overflow-x: hidden;
+    overflow-y: auto;
     z-index: 1050;
     transition: transform .3s cubic-bezier(.4,0,.2,1);
     padding-bottom: 40px;
 }
-.sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-track { background: transparent; }
-.sidebar::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
 .sidebar.collapsed { transform: translateX(-100%); }
 .sidebar a, .menu-toggle {
     display: flex; align-items: center; gap: 10px;
     color: var(--muted); text-decoration: none;
     padding: 11px 20px; font-size: 13.5px; font-weight: 500;
     border-left: 3px solid transparent;
-    transition: all .2s; cursor: pointer; user-select: none;
-    white-space: nowrap;
+    transition: all .2s;
+    cursor: pointer;
 }
 .sidebar a:hover, .menu-toggle:hover { color: #fff; background: var(--glass); border-left-color: var(--accent); }
 .sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,200,0.07); }
@@ -245,14 +238,13 @@ body::before {
 .menu-group.open .menu-arrow { transform: rotate(180deg); }
 .sidebar-divider { height: 1px; background: var(--glass-border); margin: 10px 16px; }
 
-/* SIDEBAR TOGGLE PILL */
 .sidebar-toggle-pill {
     position: fixed; top: calc(var(--nav-h) + 16px); left: var(--sidebar-w);
     width: 24px; height: 44px; background: var(--accent);
     border-radius: 0 10px 10px 0;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 1060; font-size: 13px; color: #000;
-    font-weight: 900; transition: left .3s cubic-bezier(.4,0,.2,1), background .2s;
+    font-weight: 900; transition: left .3s cubic-bezier(.4,0,.2,1);
 }
 .sidebar-toggle-pill:hover { background: #00c9b0; }
 .sidebar-toggle-pill.collapsed { left: 0; }
@@ -309,7 +301,7 @@ body::before {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--muted);
+    color: #ffffff !important;
     margin-bottom: 6px;
 }
 .form-group input, .form-group textarea, .form-group select {
@@ -318,7 +310,7 @@ body::before {
     background: rgba(255,255,255,0.08);
     border: 1px solid var(--glass-border);
     border-radius: 10px;
-    color: var(--text);
+    color: #f0f0f0;
     font-family: var(--sans);
     font-size: 14px;
     outline: none;
@@ -377,7 +369,7 @@ body::before {
     background: rgba(255,255,255,0.08);
     border: 1px solid var(--glass-border);
     border-radius: 30px;
-    color: var(--text);
+    color: #f0f0f0;
 }
 .search-bar button, .search-bar a {
     padding: 0 20px;
@@ -408,6 +400,9 @@ body::before {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-size: 11px;
+}
+.services-table td {
+    color: #ffffff !important;
 }
 .services-table tr:hover td {
     background: rgba(255,255,255,0.03);
@@ -504,9 +499,7 @@ body::before {
 </nav>
 
 <!-- SIDEBAR (modern dashboard) -->
-<?php
-include 'navigation.php';
-?>
+<?php include 'navigation.php'; ?>
 
 <div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
