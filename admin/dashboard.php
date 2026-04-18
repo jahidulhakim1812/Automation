@@ -4,7 +4,8 @@ if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
     header("Location: login.php");
     exit();
 }
-require_once 'config.php';   // <-- ADD THIS LINE
+
+require_once 'config.php';
 
 /* ── Filter Logic ─────────────────────────────── */
 $filterType = $_GET['filter'] ?? 'all';
@@ -29,7 +30,7 @@ function buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $cu
 
 $studWhere    = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'created_at');
 $invWhere     = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'invoice_date');
-$serviceWhere = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'created_at');
+$expenseWhere = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'expense_date'); // for expenses
 
 /* ── Categories ───────────────────────────────── */
 $categories = ['Graphic Design','Video Editing','Social Media Marketing','Digital Marketing','Office Application'];
@@ -57,6 +58,13 @@ $invDue   = $invTotal - $invPaid;
 /* ── Combined Income & Due ───────────────────── */
 $totalIncome = $totalPaidFee + $invPaid;
 $totalDue    = $totalDueFee + $invDue;
+
+/* ── Total Expenses ───────────────────────────── */
+$rExp = $conn->query("SELECT SUM(amount) AS total_expense FROM expenses $expenseWhere");
+$totalExpense = (float)($rExp->fetch_assoc()['total_expense'] ?? 0);
+
+/* ── Net Profit ───────────────────────────────── */
+$netProfit = $totalIncome - $totalExpense;
 
 /* ── Total Students ───────────────────────────── */
 $r3 = $conn->query("SELECT COUNT(*) AS total FROM students $studWhere");
@@ -144,17 +152,15 @@ $invStatusDataJson  = json_encode(array_values($invStatusCounts));
         background-position: center;
         font-family: var(--sans);
     }
-    /* Keep all your existing styles */
-    /* Dark mode overrides */
-body.dark-mode {
-    --bg: rgba(0,0,0,0.9);
-    --glass: rgba(0,0,0,0.5);
-    --glass-border: rgba(255,255,255,0.1);
-    --text: #e0e0e0;
-}
-body.dark-mode::before {
-    background: rgba(0,0,0,0.85);
-}
+    body.dark-mode {
+        --bg: rgba(0,0,0,0.9);
+        --glass: rgba(0,0,0,0.5);
+        --glass-border: rgba(255,255,255,0.1);
+        --text: #e0e0e0;
+    }
+    body.dark-mode::before {
+        background: rgba(0,0,0,0.85);
+    }
 </style>
 <style>
 :root {
@@ -180,8 +186,6 @@ body.dark-mode::before {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
-
-
 
 body::before {
     content: '';
@@ -342,6 +346,7 @@ body::before {
 .kpi-card:nth-child(3){animation-delay:.15s} .kpi-card:nth-child(4){animation-delay:.2s}
 .kpi-card:nth-child(5){animation-delay:.25s} .kpi-card:nth-child(6){animation-delay:.3s}
 .kpi-card:nth-child(7){animation-delay:.35s} .kpi-card:nth-child(8){animation-delay:.4s}
+.kpi-card:nth-child(9){animation-delay:.45s} .kpi-card:nth-child(10){animation-delay:.5s}
 .kpi-card:hover { transform: translateY(-4px); background: var(--glass-hover); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
 .kpi-card::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
@@ -359,6 +364,8 @@ body::before {
 .badge-up { background: rgba(6,214,160,0.15); color: #06d6a0; }
 .badge-down { background: rgba(255,107,107,0.15); color: #ff6b6b; }
 .badge-neu { background: rgba(200,210,230,0.1); color: var(--muted); }
+.profit-positive { color: #06d6a0; }
+.profit-negative { color: #ff6b6b; }
 
 /* Category Cards */
 .cat-grid {
@@ -487,8 +494,7 @@ body::before {
 }
 </style>
 </head>
-
-    <body class="<?php echo $dark_mode ? 'dark-mode' : ''; ?>">
+<body class="<?php echo $dark_mode ? 'dark-mode' : ''; ?>">
 
 <!-- TOP NAV -->
 <nav class="topnav">
@@ -506,10 +512,7 @@ body::before {
 </nav>
 
 <!-- SIDEBAR -->
-<?php
-include 'navigation.php';
-?>
-    
+<?php include 'navigation.php'; ?>
 
 <div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
@@ -611,6 +614,20 @@ include 'navigation.php';
             <div class="kpi-label">Last Month</div>
             <div class="kpi-value"><?= $prevMonthStudents ?></div>
             <div class="kpi-sub">New enrollments</div>
+        </div>
+        <!-- NEW: Total Expenses Card -->
+        <div class="kpi-card" style="--card-accent:#e74c3c">
+            <div class="kpi-icon">💸</div>
+            <div class="kpi-label">Total Expenses</div>
+            <div class="kpi-value">৳<?= number_format($totalExpense,0) ?></div>
+            <div class="kpi-sub">All expenses (filtered)</div>
+        </div>
+        <!-- NEW: Net Profit Card -->
+        <div class="kpi-card" style="--card-accent:#f39c12">
+            <div class="kpi-icon">📈</div>
+            <div class="kpi-label">Net Profit</div>
+            <div class="kpi-value <?= $netProfit >= 0 ? 'profit-positive' : 'profit-negative' ?>">৳<?= number_format($netProfit,0) ?></div>
+            <div class="kpi-sub">Income - Expenses</div>
         </div>
     </div>
 

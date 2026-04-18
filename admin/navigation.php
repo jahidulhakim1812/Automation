@@ -48,6 +48,16 @@
         </div>
     </div>
 
+      <!-- expense Group -->
+    <div class="menu-group">
+        <div class="menu-toggle"><?php echo get_sidebar_label('expense', '💰 Expense'); ?> <span class="menu-arrow">▾</span></div>
+        <div class="submenu">
+            <a href="add_expense.php"><?php echo get_sidebar_label('add_expense', 'Add Expense'); ?></a>
+            <a href="expense_list.php"><?php echo get_sidebar_label('expense_list', 'Expense List'); ?></a>
+            
+        </div>
+    </div>
+
         <a href="notices.php"><?php echo get_sidebar_label('notices', '📢 Notices'); ?></a>
 
     <a href="delete.php"><?php echo get_sidebar_label('delete', '🗑️ Delete'); ?></a>
