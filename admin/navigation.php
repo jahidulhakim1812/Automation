@@ -89,10 +89,11 @@
 
     <!-- Certificate Group -->
     <div class="menu-group">
-        <div class="menu-toggle"><?php echo get_sidebar_label('certificate', '📜 Certificate'); ?> <span class="menu-arrow">▾</span></div>
+        <div class="menu-toggle"><?php echo get_sidebar_label('certificate', '🎓 Certificate'); ?> <span class="menu-arrow">▾</span></div>
         <div class="submenu">
             <a href="upload_certificate.php"><?php echo get_sidebar_label('upload_certificate', 'Upload Certificate'); ?></a>
             <a href="certificate_list.php"><?php echo get_sidebar_label('view_certificate', 'View Certificate'); ?></a>
+            <a href="generate_certificate.php"><?php echo get_sidebar_label('generate_certificate', 'Generate Certificate'); ?></a>
         </div>
     </div>
 

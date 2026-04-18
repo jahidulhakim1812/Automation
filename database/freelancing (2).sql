@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 18, 2026 at 05:22 PM
+-- Generation Time: Apr 18, 2026 at 07:13 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -203,6 +203,23 @@ INSERT INTO `expenses` (`id`, `category`, `amount`, `expense_date`, `description
 (12, 'Marketing', 500.00, '2026-04-18', 'X stand', NULL, '22303070@iubat.edu', '2026-04-18 14:45:30'),
 (13, 'Office expense', 40000.00, '2026-04-18', 'For 10 month', NULL, '22303070@iubat.edu', '2026-04-18 14:46:14'),
 (14, 'Marketing', 2000.00, '2026-04-18', 'other item', NULL, '22303070@iubat.edu', '2026-04-18 14:46:39');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `generated_certificates`
+--
+
+CREATE TABLE `generated_certificates` (
+  `id` int(11) NOT NULL,
+  `student_id` varchar(50) NOT NULL,
+  `certificate_number` varchar(50) NOT NULL,
+  `issue_date` date NOT NULL,
+  `course_name` varchar(100) DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `generated_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -580,6 +597,13 @@ ALTER TABLE `expenses`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `generated_certificates`
+--
+ALTER TABLE `generated_certificates`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_certificate` (`student_id`,`certificate_number`);
+
+--
 -- Indexes for table `invoices`
 --
 ALTER TABLE `invoices`
@@ -707,6 +731,12 @@ ALTER TABLE `customer_services`
 --
 ALTER TABLE `expenses`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+
+--
+-- AUTO_INCREMENT for table `generated_certificates`
+--
+ALTER TABLE `generated_certificates`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `invoices_new`
