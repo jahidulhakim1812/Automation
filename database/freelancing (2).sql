@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 17, 2026 at 04:04 PM
+-- Generation Time: Apr 18, 2026 at 05:22 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -87,9 +87,9 @@ CREATE TABLE `app_settings` (
 --
 
 INSERT INTO `app_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
-('background_image', 'uploads/banner.jpg', '2026-04-17 08:43:09'),
-('dark_mode', '1', '2026-04-17 12:37:30'),
-('sidebar_labels', '{\"dashboard\":\"Dashboard\",\"account\":\"\",\"account_overview\":\"\",\"account_report\":\"\",\"change_password\":\"\",\"student_info\":\"\",\"add_student\":\"\",\"total_student_list\":\"\",\"student_form\":\"\",\"course_complete\":\"\",\"course_incomplete\":\"\",\"ongoing\":\"\",\"customers\":\"\",\"add_customer\":\"\",\"customer_list\":\"\",\"services\":\"\",\"manage_services\":\"\",\"assign_service\":\"\",\"delete\":\"\",\"report\":\"\",\"payment\":\"\",\"pos_invoice\":\"\",\"invoice_list\":\"\",\"print_invoice\":\"\",\"verify_invoice\":\"\",\"add_payment\":\"\",\"due_payment_list\":\"\",\"attendance\":\"\",\"take_attendance\":\"\",\"attendance_report\":\"\",\"certificate\":\"\",\"upload_certificate\":\"\",\"view_certificate\":\"\",\"video\":\"\",\"upload_video\":\"\",\"view_videos\":\"\",\"routine\":\"\"}', '2026-04-17 12:36:56');
+('background_image', 'uploads/banner.jpg', '2026-04-18 13:30:35'),
+('dark_mode', '1', '2026-04-18 13:27:04'),
+('sidebar_labels', '{\"dashboard\":\"\",\"account\":\"\",\"account_overview\":\"\",\"account_report\":\"\",\"change_password\":\"\",\"student_info\":\"\",\"add_student\":\"\",\"total_student_list\":\"\",\"student_form\":\"\",\"course_complete\":\"\",\"course_incomplete\":\"\",\"ongoing\":\"\",\"customers\":\"\",\"add_customer\":\"\",\"customer_list\":\"\",\"services\":\"\",\"manage_services\":\"\",\"assign_service\":\"\",\"delete\":\"\",\"report\":\"\",\"payment\":\"\",\"pos_invoice\":\"\",\"invoice_list\":\"\",\"print_invoice\":\"\",\"verify_invoice\":\"\",\"add_payment\":\"\",\"due_payment_list\":\"\",\"attendance\":\"\",\"take_attendance\":\"\",\"attendance_report\":\"\",\"certificate\":\"\",\"upload_certificate\":\"\",\"view_certificate\":\"\",\"video\":\"\",\"upload_video\":\"\",\"view_videos\":\"\",\"routine\":\"\"}', '2026-04-17 17:24:12');
 
 -- --------------------------------------------------------
 
@@ -146,7 +146,8 @@ CREATE TABLE `customers` (
 --
 
 INSERT INTO `customers` (`id`, `name`, `email`, `phone`, `address`, `created_at`) VALUES
-(1, 'Md. Jahidul Hakim', 'mdjhk19@gmail.com', '01837090666', 'Dhaka,Gazipur,Boardbazar,National university,\r\nsouth khailkur,38no woard,sohid siddik road, holding no:446', '2026-04-12 17:36:02');
+(2, 'Rekha Akter', 'elitewearboutique.bd@gmail.com', '01609189529', 'boardbazar,khailkur38no woard', '2026-04-17 15:06:47'),
+(3, 'Md.Ramjan Ali', 'alihairwig.bd@gmail.com', '01920-899031', 'Holdin no: 343/A,Sarker Bari,Uttar Khan,(Helal Market)., Dhaka, Bangladesh, 1230', '2026-04-18 14:53:07');
 
 -- --------------------------------------------------------
 
@@ -166,12 +167,42 @@ CREATE TABLE `customer_services` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+
 --
--- Dumping data for table `customer_services`
+-- Table structure for table `expenses`
 --
 
-INSERT INTO `customer_services` (`id`, `customer_id`, `service_id`, `assigned_date`, `start_date`, `end_date`, `status`, `notes`, `created_at`) VALUES
-(1, 1, 7, '2026-04-12', '2026-04-12', '2026-04-15', 'pending', '', '2026-04-12 17:39:14');
+CREATE TABLE `expenses` (
+  `id` int(11) NOT NULL,
+  `category` varchar(100) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `expense_date` date NOT NULL,
+  `description` text DEFAULT NULL,
+  `receipt_file` varchar(255) DEFAULT NULL,
+  `created_by` varchar(100) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `expenses`
+--
+
+INSERT INTO `expenses` (`id`, `category`, `amount`, `expense_date`, `description`, `receipt_file`, `created_by`, `created_at`) VALUES
+(1, 'Rent', 22500.00, '2026-04-18', 'June,July,August,September,October,November,December,January,February', NULL, '22303070@iubat.edu', '2026-04-18 13:29:07'),
+(2, 'Wifi BIll', 5000.00, '2026-04-18', 'June,July,August,September,October,November,December,January,February,March', NULL, '22303070@iubat.edu', '2026-04-18 14:36:54'),
+(3, 'Marketing', 1500.00, '2026-04-18', 'Logo light setup and other things', NULL, '22303070@iubat.edu', '2026-04-18 14:37:35'),
+(4, 'Office Supplies', 5000.00, '2026-04-18', 'Chair', NULL, '22303070@iubat.edu', '2026-04-18 14:41:03'),
+(5, 'Electritic items', 1500.00, '2026-04-18', 'Keyboard,Mouse', NULL, '22303070@iubat.edu', '2026-04-18 14:42:14'),
+(6, 'Office Supplies', 8000.00, '2026-04-18', 'chair,table ,sofa', NULL, '22303070@iubat.edu', '2026-04-18 14:43:06'),
+(7, 'Electritic items', 2000.00, '2026-04-18', 'power supply and motherboard service', NULL, '22303070@iubat.edu', '2026-04-18 14:43:31'),
+(8, 'Electritic items', 1200.00, '2026-04-18', 'Monitor', NULL, '22303070@iubat.edu', '2026-04-18 14:43:45'),
+(9, 'Office Supplies', 1500.00, '2026-04-18', 'Office Mat', NULL, '22303070@iubat.edu', '2026-04-18 14:44:26'),
+(10, 'Electritic items', 18000.00, '2026-04-18', 'Printer', NULL, '22303070@iubat.edu', '2026-04-18 14:44:48'),
+(11, 'Marketing', 1500.00, '2026-04-18', 'Decoration banner', NULL, '22303070@iubat.edu', '2026-04-18 14:45:07'),
+(12, 'Marketing', 500.00, '2026-04-18', 'X stand', NULL, '22303070@iubat.edu', '2026-04-18 14:45:30'),
+(13, 'Office expense', 40000.00, '2026-04-18', 'For 10 month', NULL, '22303070@iubat.edu', '2026-04-18 14:46:14'),
+(14, 'Marketing', 2000.00, '2026-04-18', 'other item', NULL, '22303070@iubat.edu', '2026-04-18 14:46:39');
 
 -- --------------------------------------------------------
 
@@ -242,8 +273,8 @@ CREATE TABLE `invoices_new` (
 --
 
 INSERT INTO `invoices_new` (`id`, `invoice_number`, `customer_id`, `invoice_date`, `due_date`, `subtotal`, `discount`, `total`, `paid_amount`, `notes`, `status`, `created_at`) VALUES
-(9, 'INV-20260417-773', 1, '2026-04-17', '2026-04-24', 10000.00, 0.00, 10000.00, 0.00, '', 'unpaid', '2026-04-17 07:35:47'),
-(10, 'INV-20260417-392', 1, '2026-04-17', '2026-04-24', 15000.00, 0.00, 15000.00, 15000.00, '', 'paid', '2026-04-17 07:41:51');
+(11, 'INV-20260417-189', 2, '2026-04-17', '2026-04-24', 5000.00, 0.00, 5000.00, 5000.00, '', 'paid', '2026-04-17 15:51:37'),
+(12, 'INV-20260418-268', 3, '2026-04-18', '2026-04-25', 65000.00, 2500.00, 62500.00, 60000.00, '', 'partial', '2026-04-18 14:54:23');
 
 -- --------------------------------------------------------
 
@@ -266,8 +297,10 @@ CREATE TABLE `invoice_items` (
 --
 
 INSERT INTO `invoice_items` (`id`, `invoice_id`, `service_id`, `description`, `qty`, `unit_price`, `total`) VALUES
-(2, 9, 6, 'Content Creation', 1, 10000.00, 10000.00),
-(3, 10, 12, 'Adobe Photoshop', 1, 15000.00, 15000.00);
+(4, 11, 44, 'Facebook page setup master package', 1, 3500.00, 3500.00),
+(5, 11, 43, 'TIN Certificate', 1, 1500.00, 1500.00),
+(6, 12, 46, 'Website Design', 1, 15000.00, 15000.00),
+(7, 12, 45, 'Custom software Design', 1, 50000.00, 50000.00);
 
 -- --------------------------------------------------------
 
@@ -352,19 +385,15 @@ CREATE TABLE `services` (
 --
 
 INSERT INTO `services` (`id`, `service_name`, `description`, `category`, `duration`, `fee`, `created_at`) VALUES
-(1, 'Logo Design', 'Professional logo creation for businesses and brands', 'Graphic Design', '2 weeks', 5000.00, '2026-02-15 12:00:03'),
-(2, 'Social Media Graphics', 'Facebook, Instagram, Twitter banner and post designs', 'Graphic Design', '1 month', 8000.00, '2026-02-15 12:00:03'),
-(3, 'Video Editing', 'Professional video editing and post-production', 'Video Editing', '2 months', 12000.00, '2026-02-15 12:00:03'),
-(4, 'Motion Graphics', 'Animated videos and explainer videos', 'Video Editing', '3 months', 18000.00, '2026-02-15 12:00:03'),
-(5, 'Social Media Management', 'Complete social media strategy and management', 'Social Media Marketing', '3 months', 15000.00, '2026-02-15 12:00:03'),
-(6, 'Content Creation', 'Social media content planning and creation', 'Social Media Marketing', '2 months', 10000.00, '2026-02-15 12:00:03'),
-(7, 'SEO Optimization', 'Search Engine Optimization for websites', 'Digital Marketing', '4 months', 20000.00, '2026-02-15 12:00:03'),
-(9, 'Microsoft Word', 'Advanced document formatting and templates', 'Office Application', '1 month', 3000.00, '2026-02-15 12:00:03'),
-(10, 'Microsoft Excel', 'Data analysis, formulas, and charts', 'Office Application', '2 months', 5000.00, '2026-02-15 12:00:03'),
-(11, 'Microsoft PowerPoint', 'Professional presentation design', 'Office Application', '1 month', 4000.00, '2026-02-15 12:00:03'),
-(12, 'Adobe Photoshop', 'Photo editing and manipulation', 'Graphic Design', '3 months', 15000.00, '2026-02-15 12:00:03'),
-(13, 'Adobe Illustrator', 'Vector graphics and illustration', 'Graphic Design', '3 months', 16000.00, '2026-02-15 12:00:03'),
-(14, 'Premiere Pro', 'Professional video editing software training', 'Video Editing', '3 months', 18000.00, '2026-02-15 12:00:03');
+(34, 'Facebook Page Setup', 'Logo,Banner,Additional setup.Location mapping,SEO', 'Social Media Development', '3 Days', 1500.00, '2026-04-17 15:39:36'),
+(39, 'Youtube Channel Setup', 'Logo,Channel Art,Additional Setup,SEO,Address verification,Number verification,Adsence verification help.', 'Social Media Development', '10  Days', 3000.00, '2026-04-17 15:44:21'),
+(40, 'Logo Design', 'High quality logo \r\nFile format will be jpg,png,psd/AI.', 'Graphic Design', '2 Days', 1000.00, '2026-04-17 15:45:29'),
+(41, 'Cover Design', 'High quality cover design\r\nJpg,png,AI/Psd', 'Graphic Design', '2 Days', 500.00, '2026-04-17 15:46:10'),
+(42, 'Custom Flyer Design', 'Made with customer requirement\r\nfile format will be jpg,png,AI/Psd,', 'Graphic Design', '2 Days', 500.00, '2026-04-17 15:47:02'),
+(43, 'TIN Certificate', 'Open TIN Account \r\nand return the yearly TIN ,customer will give the tax amount payment and the charge 100.', 'Online Work', '1 Hour', 1500.00, '2026-04-17 15:48:31'),
+(44, 'Facebook page setup master package', 'logo ,cover ,additional setup,SEO,fully optimized and 10 graphic custom design for their products and  1 month support', 'Social Media Development', '1 Month', 3500.00, '2026-04-17 15:50:37'),
+(45, 'Custom software Design', 'Custom software design according to customer requirement,', 'Software Development', '3 month', 50000.00, '2026-04-18 14:47:54'),
+(46, 'Website Design', 'According to customer requirement', 'Web design', '2 Month', 15000.00, '2026-04-18 14:48:37');
 
 -- --------------------------------------------------------
 
@@ -458,7 +487,8 @@ INSERT INTO `student_routine` (`id`, `student_id`, `day`, `start_time`, `end_tim
 (7, 250803, 'Monday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
 (8, 250803, 'Tuesday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
 (9, 250803, 'Wednesday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
-(10, 250803, 'Thursday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24');
+(10, 250803, 'Thursday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
+(11, 250401, 'Saturday', '12:11:00', '13:11:00', '', '', '2026-04-17 17:21:13');
 
 -- --------------------------------------------------------
 
@@ -542,6 +572,12 @@ ALTER TABLE `customer_services`
   ADD PRIMARY KEY (`id`),
   ADD KEY `customer_id` (`customer_id`),
   ADD KEY `service_id` (`service_id`);
+
+--
+-- Indexes for table `expenses`
+--
+ALTER TABLE `expenses`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `invoices`
@@ -658,7 +694,7 @@ ALTER TABLE `certificates`
 -- AUTO_INCREMENT for table `customers`
 --
 ALTER TABLE `customers`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `customer_services`
@@ -667,16 +703,22 @@ ALTER TABLE `customer_services`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
+-- AUTO_INCREMENT for table `expenses`
+--
+ALTER TABLE `expenses`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+
+--
 -- AUTO_INCREMENT for table `invoices_new`
 --
 ALTER TABLE `invoices_new`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `invoice_items`
 --
 ALTER TABLE `invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `notices`
@@ -706,7 +748,7 @@ ALTER TABLE `routines`
 -- AUTO_INCREMENT for table `services`
 --
 ALTER TABLE `services`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT for table `students`
@@ -718,7 +760,7 @@ ALTER TABLE `students`
 -- AUTO_INCREMENT for table `student_routine`
 --
 ALTER TABLE `student_routine`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `users`
