@@ -145,7 +145,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
                 $unit_price = floatval($item['unit_price'] ?? 0);
                 $item_total = floatval($item['total']      ?? 0);
 
-                // Handle nullable service_id
                 if ($svc_id === null) {
                     $item_stmt->bind_param("iisddd", $invoice_id, $svc_id, $desc, $qty, $unit_price, $item_total);
                 } else {
@@ -158,14 +157,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
             $conn->commit();
             $message = "Invoice <strong>{$inv_number}</strong> saved successfully! Total: ৳" . number_format($total, 2);
             $saved_inv_number = $inv_number;
+            echo json_encode(['success' => true, 'invoice_no' => $inv_number]);
         } catch (Exception $e) {
             $conn->rollback();
-            $error = "Failed to save invoice: " . $e->getMessage();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
+        exit;
+    }
+    if ($error) {
+        echo json_encode(['success' => false, 'error' => $error]);
+        exit;
     }
 }
 
-// Assign service (if form submitted separately – kept for completeness)
+// Assign service (kept for completeness)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['assign_service'])) {
     $customer_id = intval($_POST['customer_id']);
     $service_id  = intval($_POST['service_id']);
@@ -328,7 +333,7 @@ body::before {
 }
 .section-title::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
 
-/* ========== POS SPECIFIC STYLES (adapted to glass) ========== */
+/* ========== POS SPECIFIC STYLES ========== */
 .pos-grid {
     display: grid;
     grid-template-columns: 1fr 380px;
@@ -363,7 +368,7 @@ body::before {
 .form-group label {
     display: block;
     font-size: 11px; font-weight: 700;
-    color: var(--muted);
+    color: #ffffff;
     text-transform: uppercase;
     letter-spacing: .6px;
     margin-bottom: 6px;
@@ -374,13 +379,32 @@ body::before {
     background: rgba(255,255,255,0.08);
     border: 1px solid var(--glass-border);
     border-radius: 10px;
-    color: var(--text);
+    color: #f0f0f0;
     font-family: var(--sans);
     font-size: 14px;
     outline: none;
 }
 .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
     border-color: var(--accent);
+}
+.form-group select {
+    color: #ffffff;
+}
+.form-group select option {
+    color: #000000 !important;
+    background: #ffffff !important;
+}
+.status-select {
+    width: 100%;
+    padding: 9px 12px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: #ffffff;
+}
+.status-select option {
+    color: #000000 !important;
+    background: #ffffff !important;
 }
 #customer-info {
     background: rgba(0,229,200,0.08);
@@ -392,6 +416,9 @@ body::before {
 }
 #customer-info.show { display: block; }
 #customer-info strong { color: var(--accent); }
+#ci-email, #ci-phone, #r-customer-contact {
+    color: #ffffff !important;
+}
 .item-builder {
     background: rgba(255,255,255,0.04);
     border: 1px solid var(--glass-border);
@@ -435,6 +462,7 @@ body::before {
     padding: 10px 12px;
     border-bottom: 1px solid var(--glass-border);
     vertical-align: middle;
+    color: #ffffff;
 }
 .del-btn {
     background: linear-gradient(135deg, #e74c3c, #c0392b);
@@ -468,31 +496,32 @@ body::before {
 .r-label {
     font-size: 10px; font-weight: 700;
     text-transform: uppercase;
-    color: var(--muted);
+    color: #ffffff;
     margin-bottom: 4px;
 }
-.r-value { font-size: 14px; font-weight: 600; color: #fff; }
+.r-value { font-size: 14px; font-weight: 600; color: #ffffff; }
 .r-divider { border: none; border-top: 1px dashed var(--glass-border); margin: 12px 0; }
 .r-line {
     display: flex; justify-content: space-between;
     font-size: 13px; padding: 4px 0;
+    color: #ffffff;
 }
 .r-subtotal-line {
     display: flex; justify-content: space-between;
-    font-size: 13px; padding: 4px 0; color: var(--muted);
+    font-size: 13px; padding: 4px 0; color: #ffffff;
 }
 .discount-row {
     display: flex; align-items: center; gap: 8px;
     margin: 10px 0;
 }
-.discount-row label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.discount-row label { font-size: 13px; color: #ffffff; font-weight: 600; }
 .discount-row input {
     flex: 1;
     padding: 8px 10px;
     background: rgba(255,255,255,0.08);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
-    color: var(--text);
+    color: #f0f0f0;
 }
 .payment-details {
     background: rgba(6,214,160,0.08);
@@ -503,6 +532,7 @@ body::before {
 .payment-line {
     display: flex; justify-content: space-between;
     padding: 6px 0; font-size: 13px;
+    color: #ffffff;
 }
 .balance-line {
     border-top: 1px solid var(--accent);
@@ -517,16 +547,8 @@ body::before {
     background: rgba(255,255,255,0.08);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
-    color: var(--text);
+    color: #f0f0f0;
     margin-top: 6px;
-}
-.status-select {
-    width: 100%;
-    padding: 9px 12px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    color: var(--text);
 }
 .r-total-box {
     background: linear-gradient(135deg, var(--accent), #00c9b0);
@@ -571,70 +593,144 @@ body::before {
 .alert-success { background: rgba(6,214,160,0.15); border: 1px solid var(--accent5); color: var(--accent5); }
 .alert-error   { background: rgba(255,107,107,0.15); border: 1px solid var(--accent3); color: var(--accent3); }
 
-/* ========== FORCE PERFECT TEXT COLORS ========== */
-/* Make all regular text white */
-body, .main, .card, .card-body, .form-group label, .r-line, .r-subtotal-line,
-.r-section, .payment-line, .discount-row label, .receipt-body, .r-value,
-#customer-info, .student-info, .item-builder, .items-table td,
-.receipt-tagline, .r-label, .r-subtotal-line span, .payment-line .label,
-.payment-line .amount, .balance-line .label, .balance-line .amount {
-    color: #ffffff !important;
+.boosting-card {
+    margin-top: 16px;
+    background: rgba(0,229,200,0.05);
+    border-radius: 12px;
+    padding: 12px;
 }
-/* Keep accent colors for important headings and special elements */
-.card-header, .section-title, .receipt-inv-num, .items-table th,
-.r-total-label, .r-total-amt, .btn-save, .alert-success, .alert-error {
-    color: var(--accent) !important;
+.boosting-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 8px;
+    align-items: end;
 }
-/* Keep button text colors */
-.btn-save, .btn-print, .btn-clear {
-    color: #fff !important;
+.boosting-row .form-group { margin-bottom: 0; }
+.boosting-row .form-group label { font-size: 9px; }
+.add-boost-btn {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    color: #000;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    padding: 9px 12px;
+    cursor: pointer;
+    align-self: end;
 }
-.btn-save { color: #000 !important; }
-/* Ensure input and select text is readable */
-.form-group input, .form-group select, .form-group textarea,
-.discount-row input, .paid-input, .status-select {
-    color: #f0f0f0 !important;
-}
-/* Dropdown options black for readability */
-.form-group select option {
-    color: #000000 !important;
-    background: #ffffff;
-}
-/* Keep accent colors for specific amounts */
-.r-total-amt, .r-total-box .r-total-amt {
-    color: #000 !important;
-}
-.balance-line .amount {
-    color: var(--accent) !important;
+.boosting-info {
+    font-size: 11px;
+    color: var(--accent4);
+    margin-top: 8px;
+    text-align: center;
 }
 
-/* PRINT INVOICE STYLES (A4) */
+/* ========== PERFECT A4 PRINT STYLES (only header + table) ========== */
 @media print {
     .topnav, .sidebar, .sidebar-toggle-pill, .btn-save, .btn-print, .btn-clear, .add-item-btn, .del-btn, .alert, .card:not(.receipt-card), .status-select, .discount-row, .paid-input, #customer-section, .footer {
         display: none !important;
     }
-    .main { margin: 0 !important; padding: 0 !important; background: white; }
-    .pos-grid { display: block !important; }
-    .receipt-card { position: static !important; box-shadow: none !important; border: none !important; }
-    #print-invoice { display: block !important; }
-    @page { size: A4; margin: 1.5cm; }
+    .main {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white;
+    }
+    .pos-grid {
+        display: block !important;
+    }
+    .receipt-card {
+        position: static !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: white;
+    }
+    #print-invoice {
+        display: block !important;
+    }
+    @page {
+        size: A4;
+        margin: 1.5cm;
+    }
+    body {
+        margin: 0;
+        padding: 0;
+    }
 }
-#print-invoice { display: none; max-width: 700px; margin: 0 auto; padding: 30px; font-family: var(--sans); background: white; }
-.pi-header { display: flex; justify-content: space-between; margin-bottom: 24px; }
-.pi-logo { font-size: 22px; font-weight: 800; color: #1e2a3a; }
-.pi-logo small { display: block; font-size: 12px; color: #636e72; }
-.pi-inv { text-align: right; }
-.pi-inv .inv-num { font-family: var(--mono); font-size: 18px; font-weight: 700; color: #00b894; }
-.pi-inv .inv-date { font-size: 12px; color: #636e72; }
-.pi-parties { display: flex; justify-content: space-between; margin-bottom: 24px; gap: 20px; }
-.pi-party h4 { font-size: 10px; text-transform: uppercase; color: #636e72; margin-bottom: 6px; }
-.pi-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-.pi-table th { background: #2c3e50; color: white; padding: 9px 12px; text-align: left; font-size: 11px; }
-.pi-table td { padding: 9px 12px; border-bottom: 1px solid #e2e6ea; font-size: 13px; }
-.pi-table tfoot td { font-weight: 700; border-top: 2px solid #2c3e50; }
-.pi-total-row td { background: #00b894; color: white; font-size: 15px; }
-.pi-footer-note { font-size: 11px; color: #636e72; text-align: center; margin-top: 30px; border-top: 1px dashed #e2e6ea; padding-top: 12px; }
-
+#print-invoice {
+    display: none;
+    max-width: 100%;
+    margin: 0 auto;
+    background: white;
+    font-family: var(--sans);
+    color: #000;
+    padding: 0;
+}
+.print-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #b8860b;
+    flex-wrap: wrap;
+}
+.print-logo img {
+    height: 70px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+}
+.print-institute {
+    flex: 1;
+    text-align: center;
+}
+.print-institute-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #b8860b;
+}
+.print-address, .print-contact {
+    font-size: 12px;
+    color: #555;
+    margin-top: 4px;
+}
+.print-invoice-info {
+    display: flex;
+    justify-content: space-between;
+    margin: 15px 0 20px;
+    padding: 10px 0;
+    border-top: 1px dashed #ccc;
+    border-bottom: 1px dashed #ccc;
+    flex-wrap: wrap;
+}
+.pi-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+.pi-table th, .pi-table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+    font-size: 12px;
+}
+.pi-table th {
+    background: #ddd;
+    font-weight: 600;
+}
+.pi-table tfoot td {
+    font-weight: 700;
+}
+.pi-total-row td {
+    background: #f0f0f0;
+}
+.print-footer-note {
+    font-size: 11px;
+    text-align: center;
+    margin-top: 30px;
+    border-top: 1px dashed #ccc;
+    padding-top: 12px;
+    color: #666;
+}
 .footer {
     position: fixed;
     bottom: 0;
@@ -660,6 +756,7 @@ body, .main, .card, .card-body, .form-group label, .r-line, .r-subtotal-line,
     .hamburger { display: block; }
     .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
     .item-builder-row { grid-template-columns: 1fr 1fr; }
+    .boosting-row { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -768,10 +865,31 @@ body, .main, .card, .card-body, .form-group label, .r-line, .r-subtotal-line,
                                 <button type="button" class="add-item-btn" onclick="addItem()">+</button>
                             </div>
                         </div>
+
+                        <!-- Boosting Service Section -->
+                        <div class="boosting-card">
+                            <div class="boosting-row">
+                                <div class="form-group">
+                                    <label>USD Amount</label>
+                                    <input type="number" id="boost_usd" step="0.01" placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>USD Rate (৳)</label>
+                                    <input type="number" id="boost_rate" step="0.01" placeholder="110.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Service Charge (৳)</label>
+                                    <input type="number" id="boost_charge" step="0.01" placeholder="0.00">
+                                </div>
+                                <button type="button" class="add-boost-btn" onclick="addBoostingItem()">+ Boost</button>
+                            </div>
+                            <div class="boosting-info">💡 Adds: "Boosting Service: $X USD @ rate Y = Z BDT + charge"</div>
+                        </div>
+
                         <div style="overflow-x:auto;">
                             <table class="items-table" id="itemsTable">
-                                <thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th><th></th></tr></thead>
-                                <tbody id="itemsBody"><tr class="empty-row" id="emptyRow"><td colspan="6">📦 No items added yet. Use the form above to add items.</div></td></tr></tbody>
+                                <thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th><th></th><tr></thead>
+                                <tbody id="itemsBody"><tr class="empty-row" id="emptyRow"><td colspan="6">📦 No items added yet. Use the form above to add items.</td></tr></tbody>
                             </table>
                         </div>
                     </div>
@@ -840,16 +958,24 @@ body, .main, .card, .card-body, .form-group label, .r-line, .r-subtotal-line,
         </div>
     </form>
 
-    <!-- PRINT-ONLY INVOICE LAYOUT -->
+    <!-- PRINT-ONLY INVOICE LAYOUT (only header + table) -->
     <div id="print-invoice">
-        <div class="pi-header">
-            <div><div class="pi-logo">AR TECH SOLUTION<small>Freelancing & Training Center</small></div></div>
-            <div class="pi-inv"><div class="inv-num" id="pi-invnum">—</div><div class="inv-date">Date: <span id="pi-date">—</span></div><div class="inv-date">Due: <span id="pi-due">—</span></div></div>
+        <div class="print-header">
+            <div class="print-logo">
+                <img src="uploads/logo.png" alt="Institute Logo" onerror="this.style.display='none'">
+            </div>
+            <div class="print-institute">
+                <div class="print-institute-name">AR TECH SOLUTION</div>
+                <div class="print-address">Address: South Khailkur, Shahid Siddique road, Boardbazar, Gazipur-1704.</div>
+                <div class="print-contact">📞 Mobile: +880 1957-288638 | ✉️ artechsolution.online@gmail.com</div>
+            </div>
         </div>
-        <div class="pi-parties">
-            <div class="pi-party"><h4>Billed To</h4><p id="pi-customer">—</p><p id="pi-contact" style="font-size:12px;"></p></div>
-            <div class="pi-party" style="text-align:right;"><h4>From</h4><p><strong>AR TECH SOLUTION</strong></p><p style="font-size:12px;">Freelancing & Training Center</p></div>
+        <div class="print-invoice-info">
+            <span><strong>Invoice No:</strong> <span id="pi-invnum">—</span></span>
+            <span><strong>Date:</strong> <span id="pi-date">—</span></span>
+            <span><strong>Due Date:</strong> <span id="pi-due">—</span></span>
         </div>
+        <!-- Billed To / From section removed -->
         <table class="pi-table">
             <thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
             <tbody id="pi-tbody"></tbody>
@@ -861,7 +987,7 @@ body, .main, .card, .card-body, .form-group label, .r-line, .r-subtotal-line,
                 <tr class="pi-total-row"><td colspan="4"><strong>Balance Due</strong></td><td id="pi-balance">৳ 0.00</td></tr>
             </tfoot>
         </table>
-        <div class="pi-footer-note">Thank you for your business! · AR TECH SOLUTION · <?php echo date('Y'); ?></div>
+        <div class="print-footer-note">Thank you for your business! · AR TECH SOLUTION · <?php echo date('Y'); ?></div>
     </div>
 </main>
 
@@ -948,6 +1074,35 @@ function addItem() {
     document.getElementById('item_desc').value = '';
     document.getElementById('item_price').value = '';
     document.getElementById('item_qty').value = '1';
+}
+
+function addBoostingItem() {
+    let usd = parseFloat(document.getElementById('boost_usd').value);
+    let rate = parseFloat(document.getElementById('boost_rate').value);
+    let charge = parseFloat(document.getElementById('boost_charge').value);
+    if (isNaN(usd)) usd = 0;
+    if (isNaN(rate)) rate = 0;
+    if (isNaN(charge)) charge = 0;
+    if (usd <= 0 || rate <= 0) {
+        alert('Please enter valid USD amount and rate.');
+        return;
+    }
+    const bdt = usd * rate;
+    const totalWithCharge = bdt + charge;
+    const description = `Boosting Service: $${usd.toFixed(2)} USD @ rate ${rate.toFixed(2)} = ${bdt.toFixed(2)} BDT + service charge ${charge.toFixed(2)} BDT`;
+    itemCounter++;
+    items.push({
+        id: itemCounter,
+        service_id: null,
+        description: description,
+        qty: 1,
+        unit_price: totalWithCharge,
+        total: totalWithCharge
+    });
+    renderItems();
+    document.getElementById('boost_usd').value = '';
+    document.getElementById('boost_rate').value = '';
+    document.getElementById('boost_charge').value = '';
 }
 
 function removeItem(id) {
@@ -1054,19 +1209,52 @@ function clearAll() {
 }
 
 function printInvoice() {
-    const custSel = document.getElementById('customer_select');
-    const custOpt = custSel.options[custSel.selectedIndex];
-    document.getElementById('pi-invnum').textContent = document.getElementById('r-inv-num').textContent;
-    const idate = document.getElementById('invoice_date').value;
-    const ddate = document.getElementById('due_date').value;
-    document.getElementById('pi-date').textContent = new Date(idate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-    document.getElementById('pi-due').textContent  = new Date(ddate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-    if (custOpt.dataset.name) {
-        document.getElementById('pi-customer').textContent = custOpt.dataset.name;
-        document.getElementById('pi-contact').textContent = (custOpt.dataset.email || '') + '   ' + (custOpt.dataset.phone || '');
+    const customerId = document.getElementById('customer_select').value;
+    if (!customerId) {
+        alert('Please select a customer first.');
+        return;
     }
-    updateReceipt();
-    window.print();
+    if (items.length === 0) {
+        alert('Please add at least one item before printing.');
+        return;
+    }
+    const btn = document.querySelector('.btn-print');
+    btn.disabled = true;
+    btn.textContent = '⏳ Saving...';
+    const formData = new URLSearchParams();
+    formData.append('save_invoice', '1');
+    formData.append('customer_id', customerId);
+    formData.append('invoice_date', document.getElementById('invoice_date').value);
+    formData.append('due_date', document.getElementById('due_date').value);
+    formData.append('discount', document.getElementById('discount_input').value);
+    formData.append('paid_amount', document.getElementById('paid_amount_input').value);
+    formData.append('notes', document.querySelector('textarea[name="notes"]').value);
+    formData.append('status', document.getElementById('status_select').value);
+    formData.append('items_json', JSON.stringify(items));
+    fetch('', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('r-inv-num').textContent = data.invoice_no;
+            document.getElementById('pi-invnum').textContent = data.invoice_no;
+            updateReceipt();
+            window.print();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Failed to save invoice. Check console for details.');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.textContent = '🖨️ Print Invoice';
+    });
 }
 
 // Customer selection handler
