@@ -7,7 +7,6 @@ if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
 
 require_once 'config.php';
 
-
 $invoice_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if ($invoice_id <= 0) die("Invalid invoice ID.");
 
@@ -212,42 +211,85 @@ body::before {
     margin: 0 auto;
 }
 
-/* Invoice styling (text colors for screen) */
-.pi-header {
+/* Header like routine form */
+.report-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24px;
-    border-bottom: 2px solid var(--accent);
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 25px;
     padding-bottom: 15px;
+    border-bottom: 2px solid var(--accent);
     flex-wrap: wrap;
-    gap: 16px;
 }
-.pi-logo {
-    font-size: 22px;
-    font-weight: 800;
+.header-logo img {
+    height: 70px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+}
+.header-text {
+    flex: 1;
+    text-align: center;
+}
+.institute-name {
+    font-size: 24px;
+    font-weight: bold;
     color: var(--accent);
 }
-.pi-logo small {
-    display: block;
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--muted);
-    margin-top: 2px;
-}
-.pi-inv {
-    text-align: right;
-}
-.inv-num {
-    font-family: var(--mono);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent5);
-}
-.inv-date {
+.address, .contact {
     font-size: 12px;
     color: var(--muted);
     margin-top: 4px;
+}
+.invoice-info {
+    display: flex;
+    justify-content: space-between;
+    margin: 15px 0 20px;
+    padding: 10px 0;
+    border-top: 1px dashed var(--glass-border);
+    border-bottom: 1px dashed var(--glass-border);
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.invoice-info-item {
+    font-size: 13px;
+}
+.invoice-info-item strong {
+    color: var(--accent);
+}
+
+/* PERFECT TABLE STYLES */
+.pi-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 13px;
+}
+.pi-table th,
+.pi-table td {
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 8px;
+    vertical-align: top;
+}
+.pi-table th {
+    background: rgba(0,0,0,0.3);
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+.pi-table td {
+    color: #fff;
+}
+.pi-table tfoot td {
+    font-weight: 700;
+    background: rgba(0,0,0,0.2);
+}
+.pi-total-row td {
+    background: var(--accent5);
+    color: #000;
+    font-weight: 700;
 }
 
 .pi-parties {
@@ -268,35 +310,6 @@ body::before {
     font-size: 13px;
     line-height: 1.6;
     color: #fff;
-}
-
-.pi-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-}
-.pi-table th {
-    background: rgba(0,0,0,0.3);
-    color: var(--accent);
-    padding: 10px 12px;
-    text-align: left;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.pi-table td {
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--glass-border);
-    font-size: 13px;
-    color: #fff;
-}
-.pi-table tfoot td {
-    font-weight: 700;
-    border-top: 2px solid var(--accent);
-}
-.pi-total-row td {
-    background: var(--accent5);
-    color: #000;
 }
 .pi-footer-note {
     font-size: 11px;
@@ -340,19 +353,24 @@ body::before {
         max-width: 100%;
         padding: 0.5cm;
     }
-    .pi-header {
+    .report-header {
         border-bottom: 1px solid #000;
     }
-    .pi-logo, .inv-num, .pi-party h4 {
+    .institute-name, .invoice-info-item strong, .pi-party h4 {
+        color: #000 !important;
+    }
+    .address, .contact, .invoice-info-item {
+        color: #333 !important;
+    }
+    .pi-table th, .pi-table td {
+        border: 1px solid #000 !important;
         color: #000 !important;
     }
     .pi-table th {
         background: #ddd !important;
-        color: #000 !important;
     }
     .pi-table td {
-        color: #000 !important;
-        border-bottom-color: #ccc;
+        background: white !important;
     }
     .pi-total-row td {
         background: #eee !important;
@@ -376,8 +394,9 @@ body::before {
     .hamburger { display: block; }
     .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
     .print-wrapper { padding: 20px; }
-    .pi-header { flex-direction: column; text-align: center; }
-    .pi-inv { text-align: center; }
+    .report-header { flex-direction: column; text-align: center; }
+    .invoice-info { flex-direction: column; align-items: center; text-align: center; }
+    .pi-table th, .pi-table td { padding: 6px 4px; font-size: 11px; }
 }
 </style>
 </head>
@@ -399,9 +418,7 @@ body::before {
 </nav>
 
 <!-- SIDEBAR (dynamic labels from config) -->
-<?php
-include 'navigation.php';
-?>
+<?php include 'navigation.php'; ?>
 
 <div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
@@ -413,17 +430,26 @@ include 'navigation.php';
     </div>
 
     <div class="print-wrapper" id="printInvoice">
-        <div class="pi-header">
-            <div>
-                <div class="pi-logo">AR TECH SOLUTION<small>Freelancing & Training Center</small></div>
+        <!-- Header -->
+        <div class="report-header">
+            <div class="header-logo">
+                <img src="uploads/logo.png" alt="Institute Logo" onerror="this.style.display='none'">
             </div>
-            <div class="pi-inv">
-                <div class="inv-num"><?php echo htmlspecialchars($invoice['invoice_number']); ?></div>
-                <div class="inv-date">Date: <?php echo date('d M Y', strtotime($invoice['invoice_date'])); ?></div>
-                <div class="inv-date">Due: <?php echo date('d M Y', strtotime($invoice['due_date'])); ?></div>
+            <div class="header-text">
+                <div class="institute-name">AR TECH SOLUTION</div>
+                <div class="address">Address: South Khailkur, Shahid Siddique road, Boardbazar, Gazipur-1704.</div>
+                <div class="contact">📞 Mobile: +880 1957-288638 | ✉️ artechsolution.online@gmail.com</div>
             </div>
         </div>
 
+        <!-- Invoice info row -->
+        <div class="invoice-info">
+            <div class="invoice-info-item"><strong>Invoice No:</strong> <?php echo htmlspecialchars($invoice['invoice_number']); ?></div>
+            <div class="invoice-info-item"><strong>Date:</strong> <?php echo date('d M Y', strtotime($invoice['invoice_date'])); ?></div>
+            <div class="invoice-info-item"><strong>Due Date:</strong> <?php echo date('d M Y', strtotime($invoice['due_date'])); ?></div>
+        </div>
+
+        <!-- Parties -->
         <div class="pi-parties">
             <div class="pi-party">
                 <h4>Billed To</h4>
@@ -439,9 +465,16 @@ include 'navigation.php';
             </div>
         </div>
 
+        <!-- Perfect Table -->
         <table class="pi-table">
             <thead>
-                <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price (৳)</th><th>Total (৳)</th></tr>
+                <tr>
+                    <th style="width:5%;">#</th>
+                    <th style="width:45%;">Description</th>
+                    <th style="width:10%;">Qty</th>
+                    <th style="width:20%;">Unit Price (৳)</th>
+                    <th style="width:20%;">Total (৳)</th>
+                </tr>
             </thead>
             <tbody>
                 <?php $counter = 1; foreach ($items as $item): ?>
@@ -455,10 +488,10 @@ include 'navigation.php';
                 <?php endforeach; ?>
             </tbody>
             <tfoot>
-                <tr><td colspan="4">Subtotal</td><td><?php echo number_format($invoice['subtotal'], 2); ?></td></tr>
-                <tr><td colspan="4">Discount</td><td><?php echo number_format($invoice['discount'], 2); ?></td></tr>
+                <tr><td colspan="4"><strong>Subtotal</strong></td><td><?php echo number_format($invoice['subtotal'], 2); ?></td></tr>
+                <tr><td colspan="4"><strong>Discount</strong></td><td><?php echo number_format($invoice['discount'], 2); ?></td></tr>
                 <tr><td colspan="4"><strong>Total</strong></td><td><strong><?php echo number_format($invoice['total'], 2); ?></strong></td></tr>
-                <tr><td colspan="4">Amount Paid</td><td><?php echo number_format($invoice['paid_amount'], 2); ?></td></tr>
+                <tr><td colspan="4"><strong>Amount Paid</strong></td><td><?php echo number_format($invoice['paid_amount'], 2); ?></td></tr>
                 <tr class="pi-total-row"><td colspan="4"><strong>Balance Due</strong></td><td><strong><?php echo number_format($balance, 2); ?></strong></td></tr>
             </tfoot>
         </table>

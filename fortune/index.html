@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>✨ Spin to Win – One Spin Per Mobile ✨</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Poppins', 'Segoe UI', system-ui, -apple-system, 'Inter', sans-serif;
+            background: radial-gradient(circle at 30% 10%, #1e2f3a, #0b1219);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* floating glitter effect */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(rgba(255,215,0,0.15) 1.5px, transparent 1.5px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        .wheel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 700px;
+            background: rgba(15, 25, 30, 0.3);
+            backdrop-filter: blur(4px);
+            border-radius: 80px;
+            padding: 20px 20px 40px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.4);
+        }
+
+        .wheel-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 550px;
+            margin: 0 auto;
+            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.3));
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            background: #1f3a32;
+            border-radius: 50%;
+            box-shadow: 0 0 0 8px rgba(255, 220, 100, 0.6), 0 0 0 14px rgba(249, 132, 74, 0.5), 0 20px 35px rgba(0,0,0,0.5);
+            transition: box-shadow 0.3s ease;
+        }
+
+        canvas:hover {
+            box-shadow: 0 0 0 10px rgba(255, 220, 100, 0.8), 0 0 0 18px rgba(249, 132, 74, 0.7), 0 25px 40px black;
+        }
+
+        /* enhanced pointer with sparkle */
+        .pointer {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 30px solid transparent;
+            border-right: 30px solid transparent;
+            border-top: 65px solid #ff5e5e;
+            filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.5));
+            z-index: 15;
+            transition: transform 0.2s;
+        }
+
+        .pointer::after {
+            content: "✨";
+            position: absolute;
+            top: -62px;
+            left: -20px;
+            font-size: 38px;
+            color: #FFF5B0;
+            text-shadow: 0 0 8px #FFA500, 0 0 15px #FFD700;
+            font-weight: bold;
+            letter-spacing: 4px;
+        }
+
+        .spin-btn {
+            margin-top: 50px;
+            background: linear-gradient(125deg, #FFD966, #FFA559);
+            border: none;
+            padding: 18px 48px;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: #1e2a2f;
+            border-radius: 100px;
+            cursor: pointer;
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255,255,255,0.5);
+            transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            width: 85%;
+            max-width: 340px;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .spin-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,200,0.5), transparent);
+            transition: left 0.6s;
+        }
+
+        .spin-btn:hover::before {
+            left: 100%;
+        }
+
+        .spin-btn:hover {
+            transform: scale(1.03);
+            background: linear-gradient(125deg, #FFE17A, #FFB15A);
+            box-shadow: 0 18px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .spin-btn:active {
+            transform: scale(0.98);
+        }
+
+        .spin-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            filter: grayscale(0.1);
+        }
+
+        .info-note {
+            text-align: center;
+            margin-top: 28px;
+            font-size: 0.85rem;
+            color: #FFE2A4;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 60px;
+            padding: 10px 20px;
+            backdrop-filter: blur(8px);
+            font-weight: 500;
+            border: 1px solid rgba(255,215,0,0.4);
+        }
+
+        /* MODAL – glam */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(14px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            transition: visibility 0.2s, opacity 0.2s;
+        }
+
+        .modal-overlay.hidden {
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .modal-card {
+            background: linear-gradient(145deg, #2a3f4a, #16232e);
+            border-radius: 56px;
+            max-width: 450px;
+            width: 90%;
+            padding: 38px 32px;
+            text-align: center;
+            border: 1px solid rgba(255, 210, 90, 0.7);
+            box-shadow: 0 35px 50px rgba(0, 0, 0, 0.6);
+            animation: popupBounce 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
+        }
+
+        .modal-card h3 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #FFE5A3, #FFB347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 25px;
+            font-weight: 800;
+        }
+
+        .modal-card input {
+            width: 100%;
+            padding: 16px 22px;
+            margin: 14px 0;
+            border: none;
+            border-radius: 80px;
+            font-size: 1rem;
+            background: rgba(255,255,245,0.96);
+            font-family: inherit;
+            font-weight: 500;
+            transition: 0.2s;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .modal-card input:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px #f9c74f, inset 0 1px 2px #0001;
+            transform: scale(1.01);
+        }
+
+        .modal-card button {
+            background: linear-gradient(115deg, #FFD966, #FFA559);
+            border: none;
+            padding: 16px 24px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border-radius: 80px;
+            margin-top: 20px;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s;
+            color: #1e2c34;
+        }
+
+        .modal-card button:hover {
+            transform: scale(1.02);
+            background: linear-gradient(115deg, #FFE270, #FFB15A);
+        }
+
+        .error-msg {
+            color: #FFB3A0;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        /* PRIZE POPUP */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.2s, opacity 0.2s ease;
+        }
+
+        .popup-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .popup-card {
+            background: linear-gradient(145deg, #2a3a44, #18232c);
+            border-radius: 70px;
+            max-width: 400px;
+            width: 88%;
+            padding: 36px 24px 44px;
+            text-align: center;
+            border: 1px solid rgba(255, 210, 90, 0.7);
+            animation: popupBounce 0.4s ease;
+        }
+
+        .popup-icon {
+            font-size: 4.8rem;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 4px 6px gold);
+        }
+
+        .popup-title {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #FFE5A3, #FFB347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .popup-prize {
+            font-size: 2.2rem;
+            font-weight: bold;
+            background: #FFD966;
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 80px;
+            color: #1e2a2f;
+            margin: 20px 0;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .popup-close {
+            background: #f9c74f;
+            border: none;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 12px 32px;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .popup-close:hover {
+            background: #ffb347;
+            transform: scale(1.02);
+        }
+
+        @keyframes popupBounce {
+            0% {
+                transform: scale(0.85);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 650px) {
+            .wheel-wrapper {
+                max-width: 380px;
+            }
+            .spin-btn {
+                font-size: 1.5rem;
+                padding: 14px 32px;
+            }
+            .popup-prize {
+                font-size: 1.7rem;
+                padding: 8px 20px;
+            }
+            .modal-card h3 {
+                font-size: 1.6rem;
+            }
+            .wheel-container {
+                padding: 15px 15px 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="wheel-container">
+    <div class="wheel-wrapper">
+        <canvas id="wheelCanvas" width="600" height="600"></canvas>
+        <div class="pointer"></div>
+    </div>
+    <button class="spin-btn" id="spinButton" disabled>🔒 VERIFY FIRST</button>
+    <div class="info-note">
+        ✨ One spin per mobile number | 100% Discount never appears ✨
+    </div>
+</div>
+
+<!-- Name & Mobile Modal -->
+<div id="userModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3>🎡 SPIN TO WIN 🎁</h3>
+        <input type="text" id="userName" placeholder="Full Name" autocomplete="off">
+        <input type="tel" id="userMobile" placeholder="Mobile Number (digits only)" autocomplete="off">
+        <div id="modalError" class="error-msg"></div>
+        <button id="submitUserBtn">▶ START SPINNING</button>
+    </div>
+</div>
+
+<!-- Prize Popup -->
+<div id="resultPopup" class="popup-overlay">
+    <div class="popup-card">
+        <div class="popup-icon">🏆✨</div>
+        <div class="popup-title">CONGRATULATIONS!</div>
+        <div class="popup-prize" id="popupPrizeText">---</div>
+        <button class="popup-close" id="closePopupBtn">AWESOME! 🎉</button>
+    </div>
+</div>
+
+<script>
+    // ---------- GLOBALS ----------
+    let segments = [];
+    let currentRotation = 0;
+    let isSpinning = false;
+    let userAuthorized = false;
+    let currentName = '';
+    let currentMobile = '';
+
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinButton');
+    const userModal = document.getElementById('userModal');
+    const userNameInput = document.getElementById('userName');
+    const userMobileInput = document.getElementById('userMobile');
+    const modalError = document.getElementById('modalError');
+    const submitBtn = document.getElementById('submitUserBtn');
+    const popupOverlay = document.getElementById('resultPopup');
+    const popupPrizeText = document.getElementById('popupPrizeText');
+    const closePopupBtn = document.getElementById('closePopupBtn');
+
+    const size = 600, center = 300, radius = 280;
+
+    // Filter out 100% discount (extra safety)
+    function filterOut100PercentDiscount(segmentsArray) {
+        if (!segmentsArray) return [];
+        return segmentsArray.filter(segment => {
+            const label = (segment.label || "").toLowerCase();
+            return !(label.includes('100% discount') || label.includes('100% off') ||
+                     (label.includes('100%') && label.includes('discount')));
+        });
+    }
+
+    // Fetch segments from backend
+    async function fetchSegments() {
+        try {
+            const resp = await fetch('get_segments.php');
+            const data = await resp.json();
+            if (data.success && data.segments && data.segments.length) {
+                let filtered = filterOut100PercentDiscount(data.segments);
+                if (filtered.length === 0) {
+                    spinBtn.disabled = true;
+                    segments = [];
+                    drawWheelEmptyState();
+                    return;
+                }
+                segments = filtered;
+                drawWheel();
+                if (userAuthorized) spinBtn.disabled = false;
+            } else {
+                segments = [];
+                drawWheelEmptyState();
+            }
+        } catch (err) {
+            console.error(err);
+            segments = [];
+            drawWheelEmptyState();
+        }
+    }
+
+    function drawWheelEmptyState() {
+        ctx.clearRect(0, 0, size, size);
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = "#2c3e2f";
+        ctx.fill();
+        ctx.fillStyle = "#f9c74f";
+        ctx.font = "bold 18px 'Segoe UI'";
+        ctx.textAlign = "center";
+        ctx.fillText("⚠️ NO PRIZES", center, center);
+    }
+
+    function getDefaultColor(i) {
+        const palette = ["#F94144", "#F9844A", "#F9C74F", "#90BE6D", "#43AA8B", "#4D908E", "#577590", "#9B5DE5", "#F15BB5", "#FEE440"];
+        return palette[i % palette.length];
+    }
+
+    function drawWheel() {
+        if (!segments.length) { drawWheelEmptyState(); return; }
+        const total = segments.length;
+        const angleStep = (Math.PI * 2) / total;
+        const startRad = (currentRotation * Math.PI) / 180;
+        ctx.clearRect(0, 0, size, size);
+        for (let i = 0; i < total; i++) {
+            const start = startRad + i * angleStep;
+            const end = start + angleStep;
+            ctx.beginPath();
+            ctx.moveTo(center, center);
+            ctx.arc(center, center, radius, start, end);
+            ctx.fillStyle = segments[i].color || getDefaultColor(i);
+            ctx.fill();
+            ctx.strokeStyle = '#FFF9E8';
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+            ctx.save();
+            ctx.translate(center, center);
+            ctx.rotate(start + angleStep / 2);
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            let fontSize = segments[i].label.length > 14 ? 11 : 13;
+            ctx.font = `bold ${fontSize}px "Segoe UI", "Poppins"`;
+            ctx.fillStyle = '#1F2A24';
+            ctx.fillText(segments[i].label, radius * 0.71, 4);
+            ctx.restore();
+        }
+        // CENTER SPARKLE ICON (glowing star)
+        ctx.beginPath();
+        ctx.arc(center, center, 48, 0, 2 * Math.PI);
+        ctx.fillStyle = "#FFE484";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#FFAA33";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(center, center, 38, 0, 2 * Math.PI);
+        ctx.fillStyle = "#F9A826";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.font = "44px 'Segoe UI', monospace";
+        ctx.fillStyle = "#FFF5CF";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("✨", center, center + 4);
+        ctx.fillStyle = "#FFDF88";
+        ctx.font = "28px monospace";
+        ctx.fillText("⭐", center - 2, center - 6);
+    }
+
+    function getCurrentWinningSegment() {
+        if (!segments.length) return null;
+        const total = segments.length;
+        const angleStep = (Math.PI * 2) / total;
+        const pointerAngle = -Math.PI / 2;
+        const wheelRad = (currentRotation * Math.PI) / 180;
+        let raw = pointerAngle - wheelRad;
+        let angle = ((raw % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        let idx = Math.floor(angle / angleStep) % total;
+        return segments[idx];
+    }
+
+    // API calls
+    async function checkMobileUnique(mobile) {
+        try {
+            const resp = await fetch(`check_mobile.php?mobile=${encodeURIComponent(mobile)}`);
+            const data = await resp.json();
+            return data.available === true;
+        } catch (e) {
+            modalError.innerText = 'Network error. Please try again.';
+            return false;
+        }
+    }
+
+    async function saveSpinWithUser(segmentId) {
+        try {
+            const resp = await fetch('save_spin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ segment_id: segmentId, name: currentName, mobile: currentMobile })
+            });
+            const data = await resp.json();
+            if (!data.success && data.error === 'mobile_already_used') {
+                alert("This mobile number has already claimed a prize. One spin only.");
+                spinBtn.disabled = true;
+                userAuthorized = false;
+                return false;
+            }
+            return true;
+        } catch (err) {
+            console.warn("save error", err);
+            return true;
+        }
+    }
+
+    // Spin animation
+    function spinWheel() {
+        if (!userAuthorized) {
+            alert("Please enter your name and mobile number first.");
+            userModal.classList.remove('hidden');
+            return;
+        }
+        if (isSpinning || !segments.length) return;
+        isSpinning = true;
+        spinBtn.disabled = true;
+
+        const extraSpins = 6 + Math.floor(Math.random() * 8);
+        const randomDeg = Math.random() * 360;
+        const targetDelta = 360 * extraSpins + randomDeg;
+        const startRot = currentRotation;
+        const endRot = startRot + targetDelta;
+        const duration = 2200;
+        const startTime = performance.now();
+
+        function animate(now) {
+            const elapsed = now - startTime;
+            let t = Math.min(1, elapsed / duration);
+            const ease = 1 - Math.pow(1 - t, 3.2);
+            currentRotation = (startRot + (endRot - startRot) * ease) % 360;
+            drawWheel();
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                currentRotation = endRot % 360;
+                drawWheel();
+                const winner = getCurrentWinningSegment();
+                if (winner) {
+                    showResultPopup(winner.label);
+                    saveSpinWithUser(winner.id);
+                } else {
+                    showResultPopup("Try Again 🤞");
+                }
+                isSpinning = false;
+                spinBtn.disabled = true;
+                spinBtn.innerText = "✅ SPIN USED";
+                userAuthorized = false;
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+
+    function showResultPopup(prize) {
+        popupPrizeText.innerText = prize;
+        popupOverlay.classList.add('active');
+    }
+    function closePopup() { popupOverlay.classList.remove('active'); }
+    closePopupBtn.addEventListener('click', closePopup);
+    popupOverlay.addEventListener('click', (e) => { if (e.target === popupOverlay) closePopup(); });
+
+    // Modal submission
+    async function onSubmitUser() {
+        const name = userNameInput.value.trim();
+        let rawMobile = userMobileInput.value.trim();
+        const mobile = rawMobile.replace(/\D/g, '');
+        modalError.innerText = '';
+
+        if (!name) { modalError.innerText = 'Please enter your name'; return; }
+        if (!mobile || mobile.length < 7 || mobile.length > 15) {
+            modalError.innerText = 'Enter a valid mobile number (7-15 digits only)';
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Checking...';
+
+        const isAvailable = await checkMobileUnique(mobile);
+        if (!isAvailable) {
+            modalError.innerText = '❌ This mobile number has already spun the wheel. One spin per number.';
+            submitBtn.disabled = false;
+            submitBtn.innerText = '▶ START SPINNING';
+            return;
+        }
+
+        currentName = name;
+        currentMobile = mobile;
+        userAuthorized = true;
+        userModal.classList.add('hidden');
+
+        if (segments.length) {
+            spinBtn.disabled = false;
+            spinBtn.innerText = '🎡 SPIN NOW 🎲';
+        } else {
+            spinBtn.disabled = true;
+            spinBtn.innerText = '⏳ LOADING...';
+        }
+        submitBtn.disabled = false;
+        submitBtn.innerText = '▶ START SPINNING';
+    }
+
+    submitBtn.addEventListener('click', onSubmitUser);
+    userMobileInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') onSubmitUser(); });
+    userNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') onSubmitUser(); });
+
+    // Initialization
+    window.addEventListener('load', () => {
+        userModal.classList.remove('hidden');
+        fetchSegments();
+    });
+
+    spinBtn.addEventListener('click', spinWheel);
+    window.addEventListener('resize', () => { if (segments.length) drawWheel(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && segments.length) drawWheel(); });
+</script>
+</body>
+</html>

@@ -122,6 +122,15 @@
     <a href="ip_locator.php" class="active"><?php echo get_sidebar_label('ip_locator', 'IP Locator'); ?></a>
         </div>
     </div>
+     
+ <!-- Ip track  -->
+    <div class="menu-group">
+        <div class="menu-toggle"><?php echo get_sidebar_label('iplocator', '🎡 Wheels of Fortune'); ?> <span class="menu-arrow">▾</span></div>
+        <div class="submenu">
+            <a href="/freelancing/fortune/admin/admin_login.php" class="active"><?php echo get_sidebar_label('wheel_admin_panel', 'Fortune Wheels Admin Panel'); ?></a>
+    <a href="/freelancing/fortune/index.html" class="active"><?php echo get_sidebar_label('fortune_wheels', 'Fortune Wheel'); ?></a>
+        </div>
+    </div>
 
     <a href="settings.php"><?php echo get_sidebar_label('settings', '⚙️ Settings'); ?></a>
     
