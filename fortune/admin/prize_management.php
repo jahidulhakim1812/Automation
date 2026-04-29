@@ -449,7 +449,7 @@ $segments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <p>Prize Manager</p>
     </div>
     <ul class="nav-menu">
-        <li class="nav-item"><a href="admin_dashboard.php" class="nav-link"><span class="icon">📊</span> Dashboard</a></li>
+        <li class="nav-item"><a href="admin.php" class="nav-link"><span class="icon">📊</span> Dashboard</a></li>
         <li class="nav-item"><a href="prize_management.php" class="nav-link active"><span class="icon">🎯</span> Prize Management</a></li>
         <li class="nav-item"><a href="admin.php" class="nav-link"><span class="icon">📜</span> Spin History</a></li>
     </ul>
