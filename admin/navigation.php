@@ -133,5 +133,6 @@
     </div>
 
     <a href="settings.php"><?php echo get_sidebar_label('settings', '⚙️ Settings'); ?></a>
+     <a href="face_search.php"><?php echo get_sidebar_label('face_search', 'Face Search'); ?></a>
     
 </aside>
