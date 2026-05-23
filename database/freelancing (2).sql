@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 18, 2026 at 07:13 PM
+-- Generation Time: May 23, 2026 at 05:23 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -202,7 +202,8 @@ INSERT INTO `expenses` (`id`, `category`, `amount`, `expense_date`, `description
 (11, 'Marketing', 1500.00, '2026-04-18', 'Decoration banner', NULL, '22303070@iubat.edu', '2026-04-18 14:45:07'),
 (12, 'Marketing', 500.00, '2026-04-18', 'X stand', NULL, '22303070@iubat.edu', '2026-04-18 14:45:30'),
 (13, 'Office expense', 40000.00, '2026-04-18', 'For 10 month', NULL, '22303070@iubat.edu', '2026-04-18 14:46:14'),
-(14, 'Marketing', 2000.00, '2026-04-18', 'other item', NULL, '22303070@iubat.edu', '2026-04-18 14:46:39');
+(14, 'Marketing', 2000.00, '2026-04-18', 'other item', NULL, '22303070@iubat.edu', '2026-04-18 14:46:39'),
+(15, 'Dollor Coast', 3000.00, '2026-04-21', 'Facebook ads campaign for the Elite Wear Boutique $20  campaign 3000', NULL, '22303070@iubat.edu', '2026-04-21 15:30:06');
 
 -- --------------------------------------------------------
 
@@ -262,7 +263,8 @@ INSERT INTO `invoices` (`invoice_no`, `student_id`, `invoice_date`, `total_amoun
 ('INV-20260312114240', 260101, '2026-03-12 10:42:40', 0.00, 0.00, 0.00),
 ('INV-20260312161857', 250601, '2026-03-12 15:18:57', 0.00, 0.00, 0.00),
 ('INV-20260417093434', 250702, '2026-04-17 07:34:34', 0.00, 0.00, 0.00),
-('INV-20260417093457', 250401, '2026-04-17 07:34:57', 0.00, 0.00, 0.00);
+('INV-20260417093457', 250401, '2026-04-17 07:34:57', 0.00, 0.00, 0.00),
+('INV-20260515175653', 260501, '2026-05-15 15:56:53', 0.00, 0.00, 0.00);
 
 -- --------------------------------------------------------
 
@@ -291,7 +293,9 @@ CREATE TABLE `invoices_new` (
 
 INSERT INTO `invoices_new` (`id`, `invoice_number`, `customer_id`, `invoice_date`, `due_date`, `subtotal`, `discount`, `total`, `paid_amount`, `notes`, `status`, `created_at`) VALUES
 (11, 'INV-20260417-189', 2, '2026-04-17', '2026-04-24', 5000.00, 0.00, 5000.00, 5000.00, '', 'paid', '2026-04-17 15:51:37'),
-(12, 'INV-20260418-268', 3, '2026-04-18', '2026-04-25', 65000.00, 2500.00, 62500.00, 60000.00, '', 'partial', '2026-04-18 14:54:23');
+(12, 'INV-20260418-268', 3, '2026-04-18', '2026-04-25', 65000.00, 2500.00, 62500.00, 60000.00, '', 'partial', '2026-04-18 14:54:23'),
+(25, 'INV-20260421-543', 2, '2026-04-21', '2026-04-28', 4500.00, 0.00, 4500.00, 4500.00, '', 'paid', '2026-04-21 15:25:56'),
+(26, 'INV-20260507-721', 2, '2026-05-07', '2026-05-14', 10000.00, 0.00, 10000.00, 4000.00, '', 'partial', '2026-05-07 16:10:12');
 
 -- --------------------------------------------------------
 
@@ -317,7 +321,9 @@ INSERT INTO `invoice_items` (`id`, `invoice_id`, `service_id`, `description`, `q
 (4, 11, 44, 'Facebook page setup master package', 1, 3500.00, 3500.00),
 (5, 11, 43, 'TIN Certificate', 1, 1500.00, 1500.00),
 (6, 12, 46, 'Website Design', 1, 15000.00, 15000.00),
-(7, 12, 45, 'Custom software Design', 1, 50000.00, 50000.00);
+(7, 12, 45, 'Custom software Design', 1, 50000.00, 50000.00),
+(20, 25, NULL, 'Boosting Service: $20.00 USD @ rate 150.00 = 3000.00 BDT + service charge 1500.00 BDT', 1, 4500.00, 4500.00),
+(21, 26, NULL, 'Boosting Service: $69.00 USD @ rate 135.00 = 9315.00 BDT + service charge 685.00 BDT', 1, 10000.00, 10000.00);
 
 -- --------------------------------------------------------
 
@@ -471,7 +477,8 @@ INSERT INTO `students` (`student_id`, `name`, `father_name`, `mother_name`, `dob
 (250803, 'Eva Akther Eity', 'Md.Eomn Mia', 'Shireena Akter', '2012-12-08', 'Dhaka, gazipur, Board bazar ', 'Kishorgonj, Austrogram ', 'Birth ID', '2008339338076647', 'kimlinzu8@gmail.com', 'Graphic Design', 'ongoing', 0, '2025-08-08', '2025-08-08', '2025-11-08', 'Gazipur', 'Gazipur', 8000.00, 8000.00, 'IMG.png', '2025-09-11 05:12:53', '2026-02-21 10:36:18', '01819866303', 'Female', 'Single', 'Student', 'Islam', 'Bangladesh'),
 (250804, 'MD.ASHIK BABU', 'Md Shafiqul Islam', 'Mst Rajia Sultana', '2005-09-05', 'Khailkur badshahmia road,kunia,borobari, Gazipur-1704', 'Dhumerkuthi,Kaunia, Rangpur', 'NID', '4672198381', 'mdazizulhakimasik@gmail.com', 'office application', 'ongoing', 0, '2025-08-08', '2025-08-08', '2025-09-08', 'Gazipur', 'Gazipur', 5000.00, 5000.00, 'IMG_20250816_203143 - Important life Asik.jpg', '2025-09-11 07:24:45', '2025-10-13 15:37:05', '01770090941', 'Male', 'Single', 'Garments worker', 'Islam', 'Bangladesh'),
 (251201, 'Muhammad Rohan Islam', 'Md Hanif Mia', 'Mst Nasima Begum ', '2016-01-30', 'Khailkur,Gazipur,Dhaka ', 'Khailkur,Gazipur,Dhaka ', 'Birth ID', 'No', 'nafiup3@gmail.com', 'Graphic Design', 'ongoing', 0, '2025-12-07', '2025-12-07', '2026-03-07', 'Gazipur', 'Gazipur', 12000.00, 12000.00, 'inbound3695639844118582066 - Nafiu .p.jpg', '2025-12-08 11:32:35', '2026-02-27 12:50:46', '01889562965', 'Male', 'Single', 'Student', 'Islam', 'Bangladesh'),
-(260101, 'Fatema jahan maliha ', 'Abul Hossain Faisal', 'Sahina Akter Shanta ', '2007-04-13', 'Shuth khailkur,National University-1704 Gazipur Cirty Corporation, Gazipur ', 'Shuth khailkur,National University-1704 Gazipur Cirty Corporation, Gazipur ', 'Birth ID', 'NO', 'fatemajahanmaliha88@gmail.com', 'Graphic Design', 'ongoing', 0, '2026-01-16', '2026-01-16', '2026-03-16', 'Gazipur', 'Gazipur', 10000.00, 5000.00, 'IMG-20260101-WA0019 - Fatema Jahan Maliha.jpg', '2026-01-16 05:40:42', '2026-03-12 10:41:43', '01715547152', 'Female', 'Single', 'Student', 'Islam', 'Bangladesh');
+(260101, 'Fatema jahan maliha ', 'Abul Hossain Faisal', 'Sahina Akter Shanta ', '2007-04-13', 'Shuth khailkur,National University-1704 Gazipur Cirty Corporation, Gazipur ', 'Shuth khailkur,National University-1704 Gazipur Cirty Corporation, Gazipur ', 'Birth ID', 'NO', 'fatemajahanmaliha88@gmail.com', 'Graphic Design', 'ongoing', 0, '2026-01-16', '2026-01-16', '2026-03-16', 'Gazipur', 'Gazipur', 10000.00, 5000.00, 'IMG-20260101-WA0019 - Fatema Jahan Maliha.jpg', '2026-01-16 05:40:42', '2026-03-12 10:41:43', '01715547152', 'Female', 'Single', 'Student', 'Islam', 'Bangladesh'),
+(260501, 'Azizul Hakim Asik', 'Md.Shafiqul Islam', 'Mst. Rajia Sultana ', '2005-09-05', 'Khailkur badshahmia road,kunia,borobari, Gazipur-1704', 'Dhumerkuthi,Kaunia, Rangpur', 'NID', '4672198381', 'mdazizulhakimasik@gmail.com', 'Graphic Design', 'ongoing', 0, '2026-05-15', '2026-05-22', '2026-08-22', 'Gazipur', 'Gazipur', 10000.00, 1000.00, '1000012761.jpeg', '2026-05-15 15:34:45', '2026-05-15 15:42:52', '01767269232', 'Male', 'Single', 'Garments worker', 'Islam', 'Bangladesh');
 
 -- --------------------------------------------------------
 
@@ -505,7 +512,10 @@ INSERT INTO `student_routine` (`id`, `student_id`, `day`, `start_time`, `end_tim
 (8, 250803, 'Tuesday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
 (9, 250803, 'Wednesday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
 (10, 250803, 'Thursday', '10:10:00', '11:10:00', '', '', '2026-04-12 15:58:24'),
-(11, 250401, 'Saturday', '12:11:00', '13:11:00', '', '', '2026-04-17 17:21:13');
+(11, 250401, 'Saturday', '12:11:00', '13:11:00', '', '', '2026-04-17 17:21:13'),
+(13, 260501, 'Monday', '20:00:00', '21:00:00', '', '', '2026-05-15 15:54:26'),
+(14, 260501, 'Wednesday', '20:00:00', '21:00:00', '', '', '2026-05-15 15:55:27'),
+(15, 260501, 'Friday', '19:00:00', '20:00:00', '', '', '2026-05-15 15:55:51');
 
 -- --------------------------------------------------------
 
@@ -664,8 +674,7 @@ ALTER TABLE `services`
 -- Indexes for table `students`
 --
 ALTER TABLE `students`
-  ADD PRIMARY KEY (`student_id`),
-  ADD UNIQUE KEY `email` (`email`);
+  ADD PRIMARY KEY (`student_id`);
 
 --
 -- Indexes for table `student_routine`
@@ -730,7 +739,7 @@ ALTER TABLE `customer_services`
 -- AUTO_INCREMENT for table `expenses`
 --
 ALTER TABLE `expenses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `generated_certificates`
@@ -742,13 +751,13 @@ ALTER TABLE `generated_certificates`
 -- AUTO_INCREMENT for table `invoices_new`
 --
 ALTER TABLE `invoices_new`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `invoice_items`
 --
 ALTER TABLE `invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `notices`
@@ -784,13 +793,13 @@ ALTER TABLE `services`
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=260302;
+  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=260502;
 
 --
 -- AUTO_INCREMENT for table `student_routine`
 --
 ALTER TABLE `student_routine`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `users`
