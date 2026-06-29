@@ -405,6 +405,7 @@ include 'navigation.php';
                         <option>Graphic Design</option><option>Video Editing</option>
                         <option>Social Media Marketing</option><option>Digital Marketing</option>
                         <option>Office Application</option>
+                        <option>Web Development</option>
                     </select>
                 </div>
                 <div class="form-field"><input type="number" name="course_fee" placeholder="Course Fee" required></div>
