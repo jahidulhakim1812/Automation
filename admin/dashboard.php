@@ -30,10 +30,18 @@ function buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $cu
 
 $studWhere    = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'created_at');
 $invWhere     = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'invoice_date');
-$expenseWhere = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'expense_date'); // for expenses
+$expenseWhere = buildDateWhere($filterType, $filterYear, $filterMonth, $customFrom, $customTo, 'expense_date');
 
-/* ── Categories ───────────────────────────────── */
-$categories = ['Graphic Design','Video Editing','Social Media Marketing','Digital Marketing','Office Application'];
+/* ── Categories (now includes Web Development) ── */
+$categories = [
+    'Graphic Design',
+    'Video Editing',
+    'Social Media Marketing',
+    'Digital Marketing',
+    'Office Application',
+    'Web Development'          // <-- NEW category
+];
+
 $counts = [];
 foreach ($categories as $cat) {
     $w = !empty($studWhere) ? str_replace('WHERE', "WHERE course_category = '".mysqli_real_escape_string($conn,$cat)."' AND", $studWhere) : "WHERE course_category = '".mysqli_real_escape_string($conn,$cat)."'";
@@ -615,14 +623,14 @@ body::before {
             <div class="kpi-value"><?= $prevMonthStudents ?></div>
             <div class="kpi-sub">New enrollments</div>
         </div>
-        <!-- NEW: Total Expenses Card -->
+        <!-- Total Expenses -->
         <div class="kpi-card" style="--card-accent:#e74c3c">
             <div class="kpi-icon">💸</div>
             <div class="kpi-label">Total Expenses</div>
             <div class="kpi-value">৳<?= number_format($totalExpense,0) ?></div>
             <div class="kpi-sub">All expenses (filtered)</div>
         </div>
-        <!-- NEW: Net Profit Card -->
+        <!-- Net Profit -->
         <div class="kpi-card" style="--card-accent:#f39c12">
             <div class="kpi-icon">📈</div>
             <div class="kpi-label">Net Profit</div>
@@ -688,8 +696,22 @@ body::before {
     <div class="section-title">🎓 Enrollment by Category</div>
     <div class="cat-grid">
         <?php
-        $catEmojis = ['Graphic Design'=>'🎨','Video Editing'=>'🎬','Social Media Marketing'=>'📱','Digital Marketing'=>'📈','Office Application'=>'💼'];
-        $catColors = ['#00e5c8','#7b5ea7','#ff6b6b','#ffd166','#06d6a0'];
+        $catEmojis = [
+            'Graphic Design'        => '🎨',
+            'Video Editing'         => '🎬',
+            'Social Media Marketing'=> '📱',
+            'Digital Marketing'     => '📈',
+            'Office Application'    => '💼',
+            'Web Development'       => '🌐'   // <-- new emoji for Web Development
+        ];
+        $catColors = [
+            '#00e5c8',
+            '#7b5ea7',
+            '#ff6b6b',
+            '#ffd166',
+            '#06d6a0',
+            '#3498db'               // <-- new color for Web Development
+        ];
         $i=0;
         foreach($counts as $cat=>$count):
         ?>
@@ -860,12 +882,12 @@ new Chart(document.getElementById('revenueChart'), {
     }
 });
 
-/* BAR CHART */
+/* BAR CHART — now includes Web Development color (BLUE) */
 new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: {
         labels: categoryLabels,
-        datasets: [{ label: 'Students', data: categoryData, backgroundColor: [ACCENT,PURPLE,RED,YELLOW,GREEN], borderRadius: 8, borderSkipped: false }]
+        datasets: [{ label: 'Students', data: categoryData, backgroundColor: [ACCENT,PURPLE,RED,YELLOW,GREEN,BLUE], borderRadius: 8, borderSkipped: false }]
     },
     options: {
         responsive: true, maintainAspectRatio: false,
