@@ -5,7 +5,7 @@ if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
     exit();
 }
 
-require_once 'config.php';   // <-- ADD THIS LINE
+require_once 'config.php';   // Database connection
 
 // ========== DELETE INVOICE ==========
 if (isset($_GET['delete_id'])) {
@@ -18,9 +18,51 @@ if (isset($_GET['delete_id'])) {
         $delete_msg = "Error deleting invoice.";
     }
     $stmt->close();
-    // Redirect to avoid resubmission
     header("Location: invoice_list.php?msg=" . urlencode($delete_msg));
     exit();
+}
+
+// ========== ADD PAYMENT (AJAX) ==========
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_payment'])) {
+    $invoice_id = intval($_POST['invoice_id']);
+    $amount = floatval($_POST['amount']);
+    if ($invoice_id > 0 && $amount > 0) {
+        // Fetch current paid_amount and total
+        $stmt = $conn->prepare("SELECT paid_amount, total FROM invoices_new WHERE id = ?");
+        $stmt->bind_param("i", $invoice_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $inv = $result->fetch_assoc();
+        $stmt->close();
+        if ($inv) {
+            $new_paid = min($inv['paid_amount'] + $amount, $inv['total']);
+            // Update paid_amount
+            $stmt = $conn->prepare("UPDATE invoices_new SET paid_amount = ? WHERE id = ?");
+            $stmt->bind_param("di", $new_paid, $invoice_id);
+            if ($stmt->execute()) {
+                // Update status if needed
+                if ($new_paid >= $inv['total']) {
+                    $stmt2 = $conn->prepare("UPDATE invoices_new SET status = 'paid' WHERE id = ?");
+                    $stmt2->bind_param("i", $invoice_id);
+                    $stmt2->execute();
+                    $stmt2->close();
+                } elseif ($new_paid > 0) {
+                    $stmt2 = $conn->prepare("UPDATE invoices_new SET status = 'partial' WHERE id = ?");
+                    $stmt2->bind_param("i", $invoice_id);
+                    $stmt2->execute();
+                    $stmt2->close();
+                }
+                echo json_encode(['success' => true, 'message' => 'Payment added successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error updating payment.']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invoice not found.']);
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Invalid amount or invoice ID.']);
+    }
+    exit;
 }
 
 // Display delete message if present
@@ -69,17 +111,15 @@ $conn->close();
         background-position: center;
         font-family: var(--sans);
     }
-    /* Keep all your existing styles */
-    /* Dark mode overrides */
-body.dark-mode {
-    --bg: rgba(0,0,0,0.9);
-    --glass: rgba(0,0,0,0.5);
-    --glass-border: rgba(255,255,255,0.1);
-    --text: #e0e0e0;
-}
-body.dark-mode::before {
-    background: rgba(0,0,0,0.85);
-}
+    body.dark-mode {
+        --bg: rgba(0,0,0,0.9);
+        --glass: rgba(0,0,0,0.5);
+        --glass-border: rgba(255,255,255,0.1);
+        --text: #e0e0e0;
+    }
+    body.dark-mode::before {
+        background: rgba(0,0,0,0.85);
+    }
 </style>
 <style>
 :root {
@@ -103,8 +143,6 @@ body.dark-mode::before {
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-
 
 body::before {
     content: '';
@@ -324,7 +362,7 @@ tr:hover td {
 .badge-unpaid { background: rgba(255,107,107,0.2); color: #ff6b6b; }
 .badge-partial { background: rgba(255,209,102,0.2); color: #ffd166; }
 .badge-cancelled { background: rgba(200,210,230,0.2); color: var(--muted); }
-.btn-print, .btn-delete {
+.btn-print, .btn-delete, .btn-pay {
     border: none;
     padding: 6px 14px;
     border-radius: 20px;
@@ -339,11 +377,15 @@ tr:hover td {
     background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
 }
+.btn-pay {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    color: white;
+}
 .btn-delete {
     background: linear-gradient(135deg, #e74c3c, #c0392b);
     color: white;
 }
-.btn-print:hover, .btn-delete:hover { opacity: .85; }
+.btn-print:hover, .btn-pay:hover, .btn-delete:hover { opacity: .85; }
 .empty-row td {
     text-align: center;
     padding: 40px;
@@ -379,7 +421,7 @@ tr:hover td {
     .search-card form { flex-direction: column; }
     .search-card button, .search-card .clear-btn { width: 100%; text-align: center; }
     th, td { padding: 8px 6px; font-size: 11px; }
-    .btn-print, .btn-delete { padding: 4px 10px; font-size: 10px; }
+    .btn-print, .btn-pay, .btn-delete { padding: 4px 10px; font-size: 10px; }
 }
 </style>
 </head>
@@ -400,10 +442,8 @@ tr:hover td {
     </div>
 </nav>
 
-<!-- SIDEBAR (modern dashboard) -->
-<?php
-include 'navigation.php';
-?>
+<!-- SIDEBAR -->
+<?php include 'navigation.php'; ?>
 <div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
 
 <!-- MAIN CONTENT -->
@@ -458,6 +498,9 @@ include 'navigation.php';
                                 <td><span class="badge <?php echo $statusClass; ?>"><?php echo ucfirst($inv['status']); ?></span></td>
                                 <td class="actions">
                                     <button class="btn-print" onclick="printInvoice(<?php echo $inv['id']; ?>)">🖨️ Print</button>
+                                    <?php if ($inv['status'] !== 'paid' && $inv['status'] !== 'cancelled' && $balance > 0): ?>
+                                        <button class="btn-pay" onclick="addPayment(<?php echo $inv['id']; ?>, <?php echo $balance; ?>)">💰 Pay</button>
+                                    <?php endif; ?>
                                     <button class="btn-delete" onclick="deleteInvoice(<?php echo $inv['id']; ?>, '<?php echo htmlspecialchars($inv['invoice_number']); ?>')">🗑️ Delete</button>
                                 </td>
                             </tr>
@@ -517,15 +560,57 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
+// Print invoice
 function printInvoice(invoiceId) {
     const printWindow = window.open(`print_invoice.php?id=${invoiceId}`, '_blank', 'width=800,height=600');
     if (printWindow) printWindow.focus();
 }
 
+// Delete invoice
 function deleteInvoice(invoiceId, invoiceNumber) {
     if (confirm(`Are you sure you want to delete invoice #${invoiceNumber}? This action cannot be undone.`)) {
         window.location.href = `?delete_id=${invoiceId}`;
     }
+}
+
+// Add payment
+function addPayment(invoiceId, balance) {
+    const amount = prompt(`Enter payment amount (max ৳${balance.toFixed(2)}):`, '');
+    if (amount === null) return; // cancelled
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed <= 0) {
+        alert('Please enter a valid amount greater than zero.');
+        return;
+    }
+    if (parsed > balance) {
+        alert(`Amount cannot exceed the balance of ৳${balance.toFixed(2)}.`);
+        return;
+    }
+    
+    // Send AJAX request
+    const formData = new URLSearchParams();
+    formData.append('add_payment', '1');
+    formData.append('invoice_id', invoiceId);
+    formData.append('amount', parsed);
+    
+    fetch('', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload(); // refresh page to update table
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An unexpected error occurred. Please try again.');
+    });
 }
 </script>
 </body>

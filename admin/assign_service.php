@@ -7,6 +7,38 @@ if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "Admin") {
 
 require_once 'config.php';
 
+// ----- Try to load PHPMailer (Composer or manual) -----
+$phpmailer_available = false;
+
+// 1. Try Composer autoload (if installed in project root or admin/)
+$autoload_paths = [
+    __DIR__ . '/../vendor/autoload.php',  // project root
+    __DIR__ . '/vendor/autoload.php',     // admin folder
+];
+foreach ($autoload_paths as $path) {
+    if (file_exists($path)) {
+        require_once $path;
+        $phpmailer_available = true;
+        break;
+    }
+}
+
+// 2. If Composer not found, try manual inclusion of PHPMailer files
+if (!$phpmailer_available) {
+    $phpmailer_src = __DIR__ . '/PHPMailer/src/';
+    if (file_exists($phpmailer_src . 'Exception.php') &&
+        file_exists($phpmailer_src . 'PHPMailer.php') &&
+        file_exists($phpmailer_src . 'SMTP.php')) {
+        require_once $phpmailer_src . 'Exception.php';
+        require_once $phpmailer_src . 'PHPMailer.php';
+        require_once $phpmailer_src . 'SMTP.php';
+        $phpmailer_available = true;
+    }
+}
+
+// If still not loaded, fallback will use native mail()
+// -------------------------------------------------------
+
 // ========== CREATE TABLES IN CORRECT ORDER ==========
 $conn->query("SET FOREIGN_KEY_CHECKS = 0");
 
@@ -75,6 +107,142 @@ $services  = $conn->query("SELECT id, service_name, fee FROM services ORDER BY s
 $message = "";
 $error   = "";
 $saved_inv_number = null;
+
+// ============================================================
+// EMAIL SENDING FUNCTION – uses PHPMailer if available, else native mail
+// ============================================================
+function sendInvoiceEmail($customer_email, $customer_name, $invoice_number, $invoice_date, $due_date, $items, $subtotal, $discount, $total, $paid, $status, $notes) {
+    global $phpmailer_available;
+
+    // Configuration
+    $from_email = "info@artechsolution.com";
+    $from_name  = "AR TECH SOLUTION";
+    $admin_bcc  = "admin@artechsolution.com";
+
+    if (empty($customer_email)) {
+        return ['success' => false, 'error' => 'No customer email provided.'];
+    }
+
+    $subject = "Invoice #{$invoice_number} from AR TECH SOLUTION";
+
+    // Build items rows
+    $item_rows = "";
+    foreach ($items as $idx => $item) {
+        $desc = htmlspecialchars($item['description'] ?? '');
+        $qty  = intval($item['qty'] ?? 1);
+        $up   = number_format($item['unit_price'] ?? 0, 2);
+        $tot  = number_format($item['total'] ?? 0, 2);
+        $item_rows .= "<tr>
+            <td style='border:1px solid #ddd;padding:6px;'>" . ($idx + 1) . "</td>
+            <td style='border:1px solid #ddd;padding:6px;'>{$desc}</td>
+            <td style='border:1px solid #ddd;padding:6px;text-align:center;'>{$qty}</td>
+            <td style='border:1px solid #ddd;padding:6px;text-align:right;'>৳ {$up}</td>
+            <td style='border:1px solid #ddd;padding:6px;text-align:right;'>৳ {$tot}</td>
+        </tr>";
+    }
+
+    // Build the HTML body
+    $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice ' . $invoice_number . '</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; }
+        .header { background: #b8860b; color: #fff; padding: 10px; text-align: center; }
+        .invoice-info { margin: 20px 0; border: 1px solid #ddd; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f2f2f2; border: 1px solid #ddd; padding: 8px; text-align: left; }
+        td { border: 1px solid #ddd; padding: 8px; }
+        .total-row { background: #f9f9f9; font-weight: bold; }
+        .footer { margin-top: 30px; font-size: 12px; color: #777; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>AR TECH SOLUTION</h2>
+        <p>Freelancing & Training Center</p>
+    </div>
+    <div class="invoice-info">
+        <p><strong>Invoice #:</strong> ' . $invoice_number . '</p>
+        <p><strong>Date:</strong> ' . $invoice_date . ' &nbsp;|&nbsp; <strong>Due Date:</strong> ' . $due_date . '</p>
+        <p><strong>Bill To:</strong> ' . $customer_name . '</p>
+        <p><strong>Status:</strong> ' . ucfirst($status) . '</p>
+    </div>
+    <table>
+        <thead>
+            <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+            ' . $item_rows . '
+        </tbody>
+        <tfoot>
+            <tr><td colspan="4" style="text-align:right;"><strong>Subtotal</strong></td><td style="text-align:right;">৳ ' . number_format($subtotal, 2) . '</td></tr>
+            <tr><td colspan="4" style="text-align:right;"><strong>Discount</strong></td><td style="text-align:right;">- ৳ ' . number_format($discount, 2) . '</td></tr>
+            <tr class="total-row"><td colspan="4" style="text-align:right;"><strong>Total</strong></td><td style="text-align:right;">৳ ' . number_format($total, 2) . '</td></tr>
+            <tr><td colspan="4" style="text-align:right;"><strong>Paid</strong></td><td style="text-align:right;">৳ ' . number_format($paid, 2) . '</td></tr>
+            <tr class="total-row"><td colspan="4" style="text-align:right;"><strong>Balance Due</strong></td><td style="text-align:right;">৳ ' . number_format(max(0, $total - $paid), 2) . '</td></tr>
+        </tfoot>
+    </table>
+    ' . (!empty($notes) ? "<p><strong>Notes:</strong> " . htmlspecialchars($notes) . "</p>" : "") . '
+    <div class="footer">
+        <p>Thank you for your business! · AR TECH SOLUTION · ' . date('Y') . '</p>
+    </div>
+</body>
+</html>';
+
+    // ---------- If PHPMailer is available, use it ----------
+    if ($phpmailer_available) {
+        // SMTP Configuration – already correct
+        $smtp_host   = 'smtp.gmail.com';
+        $smtp_username = 'artechsolution.online@gmail.com';
+        $smtp_password = 'giwr wrcr mnyi lkpf';
+        $smtp_port   = 587;
+        $smtp_secure = 'tls';
+
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host       = $smtp_host;
+            $mail->SMTPAuth   = true;
+            $mail->Username   = $smtp_username;
+            $mail->Password   = $smtp_password;
+            $mail->SMTPSecure = $smtp_secure;
+            $mail->Port       = $smtp_port;
+
+            $mail->setFrom($from_email, $from_name);
+            $mail->addAddress($customer_email, $customer_name);
+            if (!empty($admin_bcc)) $mail->addBCC($admin_bcc);
+
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body    = $html;
+
+            $mail->send();
+            return ['success' => true];
+        } catch (\PHPMailer\PHPMailer\Exception $e) {
+            return ['success' => false, 'error' => $mail->ErrorInfo];
+        }
+    } else {
+        // ---------- Fallback to native mail() ----------
+        ini_set('SMTP', 'smtp.gmail.com');
+        ini_set('smtp_port', 587);
+        ini_set('sendmail_from', $from_email);
+        $headers = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $headers .= "From: {$from_name} <{$from_email}>\r\n";
+        if (!empty($admin_bcc)) {
+            $headers .= "Bcc: {$admin_bcc}\r\n";
+        }
+        $success = mail($customer_email, $subject, $html, $headers);
+        if ($success) {
+            return ['success' => true];
+        } else {
+            return ['success' => false, 'error' => 'Native mail() failed. Please install PHPMailer via Composer or configure your mail server.'];
+        }
+    }
+}
+// ============================================================
 
 // ========== SAVE INVOICE ==========
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
@@ -172,19 +340,80 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
             $item_stmt->close();
 
             $conn->commit();
+
+            // ----- SEND EMAIL TO CUSTOMER -----
+            $cust_query = $conn->prepare("SELECT name, email FROM customers WHERE id = ?");
+            $cust_query->bind_param("i", $customer_id);
+            $cust_query->execute();
+            $cust_result = $cust_query->get_result();
+            $customer = $cust_result->fetch_assoc();
+            $cust_query->close();
+
+            $email_result = ['success' => false, 'error' => 'No email address found'];
+            if ($customer && !empty($customer['email'])) {
+                $email_result = sendInvoiceEmail(
+                    $customer['email'],
+                    $customer['name'],
+                    $inv_number,
+                    $invoice_date,
+                    $due_date,
+                    $items_arr,
+                    $subtotal,
+                    $discount,
+                    $total,
+                    $paid_amount,
+                    $status,
+                    $notes
+                );
+            } elseif (!empty($new_email)) {
+                $email_result = sendInvoiceEmail(
+                    $new_email,
+                    $new_name,
+                    $inv_number,
+                    $invoice_date,
+                    $due_date,
+                    $items_arr,
+                    $subtotal,
+                    $discount,
+                    $total,
+                    $paid_amount,
+                    $status,
+                    $notes
+                );
+            }
+
             $message = "Invoice <strong>{$inv_number}</strong> saved successfully! Total: ৳" . number_format($total, 2);
+            if ($email_result['success']) {
+                $message .= " 📧 A copy has been sent to the customer's email.";
+            } else {
+                $message .= " ⚠️ Email could not be sent: " . htmlspecialchars($email_result['error']);
+            }
             $saved_inv_number = $inv_number;
-            echo json_encode(['success' => true, 'invoice_no' => $inv_number]);
+
+            // If this is an AJAX request (Print button), return JSON
+            if (isset($_POST['ajax']) && $_POST['ajax'] == '1') {
+                echo json_encode([
+                    'success' => true,
+                    'invoice_no' => $inv_number,
+                    'email_sent' => $email_result['success'],
+                    'message' => $message
+                ]);
+                exit;
+            }
+            // Otherwise (normal Save button), we'll continue to render the page with the message
+
         } catch (Exception $e) {
             $conn->rollback();
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            if (isset($_POST['ajax']) && $_POST['ajax'] == '1') {
+                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+                exit;
+            } else {
+                $error = "Error saving invoice: " . $e->getMessage();
+            }
         }
-        exit;
     }
-    if ($error) {
-        echo json_encode(['success' => false, 'error' => $error]);
-        exit;
-    }
+    // If not AJAX and we have an error, we'll display it on the page
+    // If AJAX, we already exited above
 }
 
 // Assign service (kept for completeness)
@@ -1258,9 +1487,10 @@ function printInvoice() {
     }
     const btn = document.querySelector('.btn-print');
     btn.disabled = true;
-    btn.textContent = '⏳ Saving...';
+    btn.textContent = '⏳ Saving & Sending Email...';
     const formData = new URLSearchParams();
     formData.append('save_invoice', '1');
+    formData.append('ajax', '1'); // <-- AJAX flag
     formData.append('customer_id', customerId);
     formData.append('new_customer_name', newName);
     formData.append('new_customer_email', document.getElementById('new_customer_email').value.trim());
@@ -1283,6 +1513,11 @@ function printInvoice() {
             document.getElementById('r-inv-num').textContent = data.invoice_no;
             document.getElementById('pi-invnum').textContent = data.invoice_no;
             updateReceipt();
+            if (data.email_sent) {
+                alert('Invoice saved and email sent to customer.');
+            } else {
+                alert('Invoice saved but email could not be sent: ' + (data.message || 'Unknown error'));
+            }
             window.print();
         } else {
             alert('Error: ' + (data.error || 'Unknown error'));

@@ -15,6 +15,49 @@ require 'PHPMailer/Exception.php';
 require 'PHPMailer/PHPMailer.php';
 require 'PHPMailer/SMTP.php';
 
+// ========== ADD PAYMENT (AJAX) ==========
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_payment'])) {
+    $invoice_id = intval($_POST['invoice_id']);
+    $amount = floatval($_POST['amount']);
+    if ($invoice_id > 0 && $amount > 0) {
+        // Fetch current paid_amount and total
+        $stmt = $conn->prepare("SELECT paid_amount, total FROM invoices_new WHERE id = ?");
+        $stmt->bind_param("i", $invoice_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $inv = $result->fetch_assoc();
+        $stmt->close();
+        if ($inv) {
+            $new_paid = min($inv['paid_amount'] + $amount, $inv['total']);
+            // Update paid_amount
+            $stmt = $conn->prepare("UPDATE invoices_new SET paid_amount = ? WHERE id = ?");
+            $stmt->bind_param("di", $new_paid, $invoice_id);
+            if ($stmt->execute()) {
+                // Update status if needed
+                if ($new_paid >= $inv['total']) {
+                    $stmt2 = $conn->prepare("UPDATE invoices_new SET status = 'paid' WHERE id = ?");
+                    $stmt2->bind_param("i", $invoice_id);
+                    $stmt2->execute();
+                    $stmt2->close();
+                } elseif ($new_paid > 0) {
+                    $stmt2 = $conn->prepare("UPDATE invoices_new SET status = 'partial' WHERE id = ?");
+                    $stmt2->bind_param("i", $invoice_id);
+                    $stmt2->execute();
+                    $stmt2->close();
+                }
+                echo json_encode(['success' => true, 'message' => 'Payment added successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error updating payment.']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invoice not found.']);
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Invalid amount or invoice ID.']);
+    }
+    exit;
+}
+
 // Email sending function
 function sendDueReminder($to_email, $customer_name, $invoice_number, $due_amount, $subject = null, $message_body = null, $attachment_tmp = null, $attachment_name = null) {
     $my_email    = 'artechsolution.online@gmail.com';
@@ -404,14 +447,22 @@ td {
     color: var(--accent3);
     font-weight: 700;
 }
-.btn-send {
+.btn-send, .btn-pay {
     background: linear-gradient(135deg, #27ae60, #2ecc71);
     color: white;
     border: none;
     padding: 4px 12px;
     border-radius: 20px;
     cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+    transition: opacity .2s;
 }
+.btn-pay {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+.btn-send:hover, .btn-pay:hover { opacity: .85; }
 .total-due {
     text-align: right;
     margin-top: 16px;
@@ -531,15 +582,16 @@ td {
                                 <td><?php echo number_format($row['paid_amount'], 2); ?></td>
                                 <td class="due-amount">৳ <?php echo number_format($row['due_amount'], 2); ?></td>
                                 <td>
-                                    <form method="POST" style="margin:0;">
+                                    <form method="POST" style="display:inline-block; margin:0;">
                                         <input type="hidden" name="email" value="<?php echo htmlspecialchars($row['email']); ?>">
                                         <input type="hidden" name="name" value="<?php echo htmlspecialchars($row['customer_name']); ?>">
                                         <input type="hidden" name="invoice_number" value="<?php echo htmlspecialchars($row['invoice_number']); ?>">
                                         <input type="hidden" name="due_amount" value="<?php echo $row['due_amount']; ?>">
                                         <input type="hidden" name="subject" value="Payment Reminder - Invoice <?php echo htmlspecialchars($row['invoice_number']); ?>">
                                         <textarea name="custom_message" style="display:none;"></textarea>
-                                        <button type="submit" name="send_single" class="btn-send">📧 Send Reminder</button>
+                                        <button type="submit" name="send_single" class="btn-send">📧 Send</button>
                                     </form>
+                                    <button class="btn-pay" onclick="addPayment(<?php echo $row['id']; ?>, <?php echo $row['due_amount']; ?>)">💰 Pay</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -589,6 +641,46 @@ function updateClock() {
 }
 updateClock();
 setInterval(updateClock, 1000);
+
+// Add payment function
+function addPayment(invoiceId, balance) {
+    const amount = prompt(`Enter payment amount (max ৳${balance.toFixed(2)}):`, '');
+    if (amount === null) return; // cancelled
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed <= 0) {
+        alert('Please enter a valid amount greater than zero.');
+        return;
+    }
+    if (parsed > balance) {
+        alert(`Amount cannot exceed the balance of ৳${balance.toFixed(2)}.`);
+        return;
+    }
+    
+    // Send AJAX request
+    const formData = new URLSearchParams();
+    formData.append('add_payment', '1');
+    formData.append('invoice_id', invoiceId);
+    formData.append('amount', parsed);
+    
+    fetch('', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload(); // refresh page to update table
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An unexpected error occurred. Please try again.');
+    });
+}
 </script>
 </body>
 </html>

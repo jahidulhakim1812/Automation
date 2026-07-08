@@ -26,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $mail->Host       = 'smtp.gmail.com';
     $mail->SMTPAuth   = true;
     $mail->Username   = 'artechsolution.online@gmail.com';
-    $mail->Password   = 'SALMANKHAN019017';  // App password for Gmail
+    $mail->Password   = 'giwr wrcr mnyi lkpf';  // App password for Gmail
     $mail->SMTPSecure = 'tls';
     $mail->Port       = 587;
 
