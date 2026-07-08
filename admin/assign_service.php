@@ -87,14 +87,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
     $status       = $_POST['status']                ?? 'unpaid';
     $items_json   = $_POST['items_json']            ?? '[]';
 
+    // New customer fields
+    $new_name  = trim($_POST['new_customer_name'] ?? '');
+    $new_email = trim($_POST['new_customer_email'] ?? '');
+    $new_phone = trim($_POST['new_customer_phone'] ?? '');
+
     $allowed_status = ['unpaid', 'paid', 'partial', 'cancelled'];
     if (!in_array($status, $allowed_status)) $status = 'unpaid';
 
     $items_arr = json_decode($items_json, true);
     if (!is_array($items_arr)) $items_arr = [];
 
+    // Process new customer if provided
+    if (!empty($new_name)) {
+        $stmt = $conn->prepare("INSERT INTO customers (name, email, phone) VALUES (?, ?, ?)");
+        $stmt->bind_param("sss", $new_name, $new_email, $new_phone);
+        if ($stmt->execute()) {
+            $customer_id = $conn->insert_id;
+        } else {
+            $error = "Failed to add new customer: " . $stmt->error;
+        }
+        $stmt->close();
+    }
+
     if ($customer_id <= 0) {
-        $error = "Please select a customer.";
+        $error = "Please select a customer or enter a new customer name.";
     } elseif (empty($items_arr)) {
         $error = "Please add at least one item before saving.";
     } else {
@@ -804,9 +821,9 @@ body::before {
                     <div class="card-body">
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Select Customer *</label>
-                                <select name="customer_id" id="customer_select" required>
-                                    <option value="">— Choose Customer —</option>
+                                <label>Select Customer</label>
+                                <select name="customer_id" id="customer_select">
+                                    <option value="">— Choose Existing Customer —</option>
                                     <?php foreach ($customers as $c): ?>
                                         <option value="<?php echo $c['id']; ?>"
                                             data-name="<?php echo htmlspecialchars($c['name']); ?>"
@@ -826,6 +843,23 @@ body::before {
                                 <input type="date" name="due_date" id="due_date" value="<?php echo date('Y-m-d', strtotime('+7 days')); ?>">
                             </div>
                         </div>
+
+                        <!-- New Customer Fields -->
+                        <div class="form-row" style="margin-top:6px; border-top:1px dashed var(--glass-border); padding-top:12px;">
+                            <div class="form-group" style="flex:2;">
+                                <label>Or New Customer Name</label>
+                                <input type="text" name="new_customer_name" id="new_customer_name" placeholder="Type new customer name">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="new_customer_email" id="new_customer_email" placeholder="Email">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" name="new_customer_phone" id="new_customer_phone" placeholder="Phone">
+                            </div>
+                        </div>
+
                         <div id="customer-info">
                             <strong id="ci-name">—</strong><br>
                             <span id="ci-email"></span> &nbsp;|&nbsp; <span id="ci-phone"></span>
@@ -1196,6 +1230,9 @@ function clearAll() {
     items = []; itemCounter = 0;
     renderItems();
     document.getElementById('customer_select').value = '';
+    document.getElementById('new_customer_name').value = '';
+    document.getElementById('new_customer_email').value = '';
+    document.getElementById('new_customer_phone').value = '';
     document.getElementById('customer-info').classList.remove('show');
     document.getElementById('r-customer').textContent = '—';
     document.getElementById('r-customer-contact').textContent = 'Select a customer';
@@ -1210,8 +1247,9 @@ function clearAll() {
 
 function printInvoice() {
     const customerId = document.getElementById('customer_select').value;
-    if (!customerId) {
-        alert('Please select a customer first.');
+    const newName = document.getElementById('new_customer_name').value.trim();
+    if (!customerId && !newName) {
+        alert('Please select an existing customer or enter a new customer name.');
         return;
     }
     if (items.length === 0) {
@@ -1224,6 +1262,9 @@ function printInvoice() {
     const formData = new URLSearchParams();
     formData.append('save_invoice', '1');
     formData.append('customer_id', customerId);
+    formData.append('new_customer_name', newName);
+    formData.append('new_customer_email', document.getElementById('new_customer_email').value.trim());
+    formData.append('new_customer_phone', document.getElementById('new_customer_phone').value.trim());
     formData.append('invoice_date', document.getElementById('invoice_date').value);
     formData.append('due_date', document.getElementById('due_date').value);
     formData.append('discount', document.getElementById('discount_input').value);
@@ -1276,6 +1317,54 @@ document.getElementById('customer_select').addEventListener('change', function()
         document.getElementById('r-customer-contact').textContent = 'Select a customer';
     }
 });
+
+// New customer name input – preview in receipt
+document.getElementById('new_customer_name').addEventListener('input', function() {
+    const name = this.value.trim();
+    if (name) {
+        document.getElementById('customer-info').classList.add('show');
+        document.getElementById('ci-name').textContent = name;
+        document.getElementById('ci-email').textContent = document.getElementById('new_customer_email').value;
+        document.getElementById('ci-phone').textContent = document.getElementById('new_customer_phone').value;
+        document.getElementById('r-customer').textContent = name;
+        const email = document.getElementById('new_customer_email').value;
+        const phone = document.getElementById('new_customer_phone').value;
+        document.getElementById('r-customer-contact').textContent = (email ? email + '  ' : '') + (phone || '');
+    } else {
+        // Fall back to selected customer if any
+        const sel = document.getElementById('customer_select');
+        const opt = sel.options[sel.selectedIndex];
+        if (opt.value) {
+            document.getElementById('ci-name').textContent = opt.dataset.name || '';
+            document.getElementById('ci-email').textContent = opt.dataset.email || '';
+            document.getElementById('ci-phone').textContent = opt.dataset.phone || '';
+            document.getElementById('r-customer').textContent = opt.dataset.name || '';
+            document.getElementById('r-customer-contact').textContent = (opt.dataset.email || '') + '  ' + (opt.dataset.phone || '');
+        } else {
+            document.getElementById('customer-info').classList.remove('show');
+            document.getElementById('r-customer').textContent = '—';
+            document.getElementById('r-customer-contact').textContent = 'Select a customer';
+        }
+    }
+});
+
+document.getElementById('new_customer_email').addEventListener('input', function() {
+    const name = document.getElementById('new_customer_name').value.trim();
+    if (name) {
+        document.getElementById('ci-email').textContent = this.value;
+        const phone = document.getElementById('new_customer_phone').value;
+        document.getElementById('r-customer-contact').textContent = (this.value ? this.value + '  ' : '') + (phone || '');
+    }
+});
+document.getElementById('new_customer_phone').addEventListener('input', function() {
+    const name = document.getElementById('new_customer_name').value.trim();
+    if (name) {
+        document.getElementById('ci-phone').textContent = this.value;
+        const email = document.getElementById('new_customer_email').value;
+        document.getElementById('r-customer-contact').textContent = (email ? email + '  ' : '') + (this.value || '');
+    }
+});
+
 document.getElementById('invoice_date').addEventListener('change', function() {
     const d = new Date(this.value);
     document.getElementById('r-idate').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
