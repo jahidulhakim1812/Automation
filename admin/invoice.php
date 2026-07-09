@@ -135,7 +135,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['search_student'])) {
         background-position: center;
         font-family: var(--sans);
     }
-    /* Dark mode overrides */
     body.dark-mode {
         --bg: rgba(0,0,0,0.9);
         --glass: rgba(0,0,0,0.5);
@@ -310,8 +309,8 @@ body::before {
 }
 .search-card button:hover { opacity: .85; }
 
-/* INVOICE CARD */
-.invoice-card {
+/* ========== INVOICE PRINT WRAPPER (from print_invoice.php) ========== */
+.print-wrapper {
     background: var(--glass);
     backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
@@ -320,64 +319,122 @@ body::before {
     max-width: 900px;
     margin: 0 auto;
 }
-.invoice-header {
+
+/* Report Header */
+.report-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--accent);
+    flex-wrap: wrap;
+}
+.header-logo img {
+    height: 70px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+}
+.header-text {
+    flex: 1;
+    text-align: center;
+}
+.institute-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--accent);
+}
+.address, .contact {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+}
+
+/* Invoice Info (number, dates) */
+.invoice-info {
     display: flex;
     justify-content: space-between;
-    border-bottom: 2px solid var(--accent);
-    padding-bottom: 20px;
-    margin-bottom: 30px;
+    margin: 15px 0 20px;
+    padding: 10px 0;
+    border-top: 1px dashed var(--glass-border);
+    border-bottom: 1px dashed var(--glass-border);
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
 }
-.invoice-header h1 {
-    margin: 0;
-    color: var(--accent);
-    font-size: 28px;
-    font-family: var(--mono);
-}
-.company-details {
-    text-align: right;
+.invoice-info-item {
     font-size: 13px;
-    color: var(--muted);
 }
-.bill-to, .invoice-details {
-    margin-bottom: 20px;
+.invoice-info-item strong {
+    color: var(--accent);
 }
-.bill-to span, .invoice-details span {
-    color: var(--muted);
-    font-size: 11px;
+
+/* Parties */
+.pi-parties {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.pi-party h4 {
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.7px;
+    color: var(--accent);
+    margin-bottom: 6px;
 }
-.bill-to strong, .invoice-details strong {
+.pi-party p {
+    font-size: 13px;
+    line-height: 1.6;
     color: #fff;
-    font-size: 16px;
 }
-.invoice-table {
+
+/* Table (perfect) */
+.pi-table {
     width: 100%;
     border-collapse: collapse;
-    margin: 20px 0;
+    margin-bottom: 20px;
+    font-size: 13px;
 }
-.invoice-table th, .invoice-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--glass-border);
+.pi-table th,
+.pi-table td {
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 8px;
+    vertical-align: top;
 }
-.invoice-table th {
+.pi-table th {
     background: rgba(0,0,0,0.3);
     color: var(--accent);
     font-weight: 600;
-    font-size: 12px;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
 }
-.invoice-table td {
-    color: var(--text);
+.pi-table td {
+    color: #fff;
 }
-.total-row td {
-    font-weight: bold;
-    border-top: 2px solid var(--accent);
-    font-size: 16px;
+.pi-table tfoot td {
+    font-weight: 700;
+    background: rgba(0,0,0,0.2);
 }
-.red-text { color: var(--accent3); }
+.pi-total-row td {
+    background: var(--accent5);
+    color: #000;
+    font-weight: 700;
+}
+
+/* Footer note */
+.pi-footer-note {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 30px;
+    border-top: 1px dashed var(--glass-border);
+    padding-top: 12px;
+}
+
+/* Action buttons (on screen) */
 .action-buttons {
     text-align: center;
     margin-top: 30px;
@@ -396,19 +453,6 @@ body::before {
 .print-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .print-btn:hover:not(:disabled) { opacity: .85; }
 
-/* Force white text in invoice card */
-.invoice-card, .invoice-card .bill-to, .invoice-card .invoice-details, 
-.invoice-card .company-details, .invoice-card table td {
-    color: #ffffff !important;
-}
-/* Keep specific colored elements as intended */
-.invoice-card .red-text {
-    color: var(--accent3) !important;
-}
-.invoice-card td[style*="color: var(--accent5)"] {
-    color: var(--accent5) !important;
-}
-
 /* FOOTER */
 .footer {
     position: fixed;
@@ -425,16 +469,63 @@ body::before {
     z-index: 900;
 }
 
-/* PRINT STYLES */
+/* ===== PRINT STYLES (clean A4) ===== */
 @media print {
     .topnav, .sidebar, .sidebar-toggle-pill, .search-card, .action-buttons, .footer {
         display: none !important;
     }
-    .main { margin: 0; padding: 0; background: white; }
-    .invoice-card { background: white; backdrop-filter: none; border: none; box-shadow: none; padding: 20px; }
-    .invoice-card * { color: black !important; }
-    .invoice-header h1 { color: #1abc9c !important; }
-    .red-text { color: #e74c3c !important; }
+    body, .main, .print-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        backdrop-filter: none !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .main {
+        padding: 0 !important;
+    }
+    .print-wrapper {
+        max-width: 100% !important;
+        padding: 0.5cm !important;
+        border-radius: 0 !important;
+        background: white !important;
+    }
+    /* Force black text everywhere inside the wrapper */
+    .print-wrapper * {
+        color: black !important;
+    }
+    .report-header {
+        border-bottom: 1px solid #000 !important;
+    }
+    .institute-name, .invoice-info-item strong, .pi-party h4 {
+        color: #000 !important;
+    }
+    .address, .contact, .invoice-info-item {
+        color: #333 !important;
+    }
+    .pi-table th, .pi-table td {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+    }
+    .pi-table th {
+        background: #ddd !important;
+    }
+    .pi-table td {
+        background: white !important;
+    }
+    .pi-total-row td {
+        background: #eee !important;
+        color: #000 !important;
+    }
+    .pi-footer-note {
+        color: #666 !important;
+        border-top-color: #ccc;
+    }
+    @page {
+        size: A4;
+        margin: 1.5cm;
+    }
 }
 
 /* RESPONSIVE */
@@ -446,8 +537,9 @@ body::before {
     .main { margin-left: 0 !important; padding-left: 16px; padding-right: 16px; }
     .search-card form { flex-direction: column; }
     .search-card button { width: 100%; }
-    .invoice-header { flex-direction: column; text-align: center; }
-    .company-details { text-align: center; }
+    .report-header { flex-direction: column; text-align: center; }
+    .invoice-info { flex-direction: column; align-items: center; text-align: center; }
+    .pi-table th, .pi-table td { padding: 6px 4px; font-size: 11px; }
 }
 </style>
 </head>
@@ -468,7 +560,7 @@ body::before {
     </div>
 </nav>
 
-<!-- SIDEBAR (modern dashboard) -->
+<!-- SIDEBAR -->
 <?php include 'navigation.php'; ?>
 
 <div class="sidebar-toggle-pill" id="sidebarToggle">◀</div>
@@ -483,56 +575,82 @@ body::before {
         </form>
     </div>
 
-    <?php if($student): ?>
-    <div class="invoice-card">
-        <div class="invoice-header">
-            <h1>INVOICE</h1>
-            <div class="company-details">
-                <strong>AR TECH SOLUTION</strong><br>
-                Dhaka, Bangladesh<br>
-                Email: artechsolution.online@gmail.com<br>
-                Date: <?php echo date("d M Y"); ?>
+    <?php if ($student): ?>
+    <div class="print-wrapper" id="printInvoice">
+        <!-- Header -->
+        <div class="report-header">
+            <div class="header-logo">
+                <img src="uploads/logo.png" alt="Institute Logo" onerror="this.style.display='none'">
+            </div>
+            <div class="header-text">
+                <div class="institute-name">AR TECH SOLUTION</div>
+                <div class="address">Address: South Khailkur, Shahid Siddique road, Boardbazar, Gazipur-1704.</div>
+                <div class="contact">📞 Mobile: +880 1957-288638 | ✉️ artechsolution.online@gmail.com</div>
             </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:20px; margin-bottom:30px;">
-            <div>
-                <span>BILL TO:</span><br>
-                <strong><?php echo htmlspecialchars($student['name']); ?></strong><br>
-                ID: <?php echo htmlspecialchars($student['student_id']); ?><br>
-                <?php echo htmlspecialchars($student['email']); ?>
+        <!-- Invoice Info Row -->
+        <div class="invoice-info">
+            <div class="invoice-info-item"><strong>Invoice No:</strong> <span id="displayInvoiceNo">PENDING...</span></div>
+            <div class="invoice-info-item"><strong>Date:</strong> <?php echo date('d M Y'); ?></div>
+            <div class="invoice-info-item"><strong>Due Date:</strong> <?php echo date('d M Y', strtotime('+15 days')); ?></div>
+        </div>
+
+        <!-- Parties -->
+        <div class="pi-parties">
+            <div class="pi-party">
+                <h4>Billed To</h4>
+                <p><strong><?php echo htmlspecialchars($student['name']); ?></strong></p>
+                <p style="font-size:12px;">
+                    ID: <?php echo htmlspecialchars($student['student_id']); ?><br>
+                    <?php echo htmlspecialchars($student['email'] ?? ''); ?><br>
+                    <?php echo htmlspecialchars($student['phone'] ?? ''); ?>
+                </p>
             </div>
-            <div style="text-align:right;">
-                <span>INVOICE NO:</span><br>
-                <strong id="displayInvoiceNo" style="color: var(--accent3);">PENDING...</strong>
+            <div class="pi-party" style="text-align:right;">
+                <h4>From</h4>
+                <p><strong>AR TECH SOLUTION</strong><br>Freelancing & Training Center</p>
             </div>
         </div>
 
-        <table class="invoice-table">
+        <!-- Table – NO DISCOUNT -->
+        <table class="pi-table">
             <thead>
-                <tr><th>Description</th><th style="text-align:right;">Amount</th></tr>
+                <tr>
+                    <th style="width:5%;">#</th>
+                    <th style="width:55%;">Description</th>
+                    <th style="width:20%;">Amount (৳)</th>
+                </tr>
             </thead>
             <tbody>
                 <tr>
+                    <td>1</td>
                     <td><?php echo htmlspecialchars($student['course_category']); ?> Course Fee</td>
-                    <td style="text-align:right;"><?php echo number_format($student['course_fee'], 2); ?> ৳</td>
-                </tr>
-                <tr>
-                    <td>Paid Amount</td>
-                    <td style="text-align:right; color: var(--accent5);">- <?php echo number_format($student['paid_fee'], 2); ?> ৳</td>
-                </tr>
-                <tr class="total-row">
-                    <td>Total Due</td>
-                    <td style="text-align:right;" class="red-text"><?php echo number_format($student['course_fee'] - $student['paid_fee'], 2); ?> ৳</td>
+                    <td><?php echo number_format($student['course_fee'], 2); ?></td>
                 </tr>
             </tbody>
+            <tfoot>
+                <tr><td colspan="2"><strong>Total</strong></td><td><strong><?php echo number_format($student['course_fee'], 2); ?></strong></td></tr>
+                <tr><td colspan="2"><strong>Amount Paid</strong></td><td><?php echo number_format($student['paid_fee'], 2); ?></td></tr>
+                <tr class="pi-total-row"><td colspan="2"><strong>Balance Due</strong></td><td><strong><?php echo number_format($student['course_fee'] - $student['paid_fee'], 2); ?></strong></td></tr>
+            </tfoot>
         </table>
 
-        <div class="action-buttons">
-            <button class="print-btn" id="printBtn">
-                🖨️ Save, Email & Print
-            </button>
+        <?php if (!empty($student['notes'])): ?>
+        <div style="margin-top:15px; font-size:12px;">
+            <strong>Notes:</strong> <?php echo nl2br(htmlspecialchars($student['notes'])); ?>
         </div>
+        <?php endif; ?>
+
+        <div class="pi-footer-note">
+            Thank you for your business! · AR TECH SOLUTION · <?php echo date('Y'); ?>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button class="print-btn" id="printBtn">
+            🖨️ Save, Email & Print
+        </button>
     </div>
     <?php endif; ?>
 </main>
@@ -544,11 +662,11 @@ body::before {
 <script>
 // Print & Email Logic
 const printBtn = document.getElementById('printBtn');
-if(printBtn) {
+if (printBtn) {
     printBtn.addEventListener('click', function() {
         const studentId = "<?php echo $student['student_id'] ?? ''; ?>";
         const btnText = printBtn.innerHTML;
-        
+
         printBtn.innerHTML = "⏳ Sending Email...";
         printBtn.disabled = true;
 
@@ -560,7 +678,7 @@ if(printBtn) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('displayInvoiceNo').textContent = data.invoice_no;
-            if(data.email_sent) {
+            if (data.email_sent) {
                 alert("✅ Invoice Saved!\n📧 Email sent successfully to the student.");
             } else {
                 alert("⚠️ Invoice Saved, but Email Failed (Check SMTP settings).");
