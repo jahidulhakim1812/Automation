@@ -1,0 +1,62 @@
+17:55:10 [2] SERVER -> CLIENT: 220-rain.mywhiteserver.com ESMTP Exim 4.99.4 #2 Sat, 11 Jul 2026 21:55:11 +0600 
+220-We do not authorize the use of this system to transport unsolicited, 
+220 and/or bulk e-mail.
+17:55:10 [1] CLIENT -> SERVER: EHLO localhost
+17:55:10 [2] SERVER -> CLIENT: 250-rain.mywhiteserver.com Hello localhost [103.146.57.185]
+250-SIZE 52428800
+250-LIMITS MAILMAX=1000 RCPTMAX=50000
+250-8BITMIME
+250-PIPELINING
+250-PIPECONNECT
+250-STARTTLS
+250 HELP
+17:55:10 [1] CLIENT -> SERVER: STARTTLS
+17:55:10 [2] SERVER -> CLIENT: 220 TLS go ahead
+17:55:11 [1] CLIENT -> SERVER: EHLO localhost
+17:55:11 [2] SERVER -> CLIENT: 250-rain.mywhiteserver.com Hello localhost [103.146.57.185]
+250-SIZE 52428800
+250-LIMITS MAILMAX=1000 RCPTMAX=50000
+250-8BITMIME
+250-PIPELINING
+250-PIPECONNECT
+250-AUTH PLAIN LOGIN
+250 HELP
+17:55:11 [1] CLIENT -> SERVER: AUTH LOGIN
+17:55:11 [2] SERVER -> CLIENT: 334 VXNlcm5hbWU6
+17:55:11 [1] CLIENT -> SERVER: [credentials hidden]17:55:11 [2] SERVER -> CLIENT: 334 UGFzc3dvcmQ6
+17:55:11 [1] CLIENT -> SERVER: [credentials hidden]17:55:11 [2] SERVER -> CLIENT: 235 Authentication succeeded
+17:55:11 [1] CLIENT -> SERVER: MAIL FROM:<support@artsbd.com>
+17:55:11 [2] SERVER -> CLIENT: 250 OK
+17:55:11 [1] CLIENT -> SERVER: RCPT TO:<mdjhk19@gmail.com>
+17:55:11 [2] SERVER -> CLIENT: 250 Accepted
+17:55:11 [1] CLIENT -> SERVER: RCPT TO:<support@artsbd.com>
+17:55:11 [2] SERVER -> CLIENT: 250 Accepted
+17:55:11 [1] CLIENT -> SERVER: DATA
+17:55:11 [2] SERVER -> CLIENT: 354 Enter message, ending with "." on a line by itself
+17:55:11 [1] CLIENT -> SERVER: Date: Sat, 11 Jul 2026 17:55:10 +0200
+17:55:11 [1] CLIENT -> SERVER: To: "Md. Jahidul Hakim" <mdjhk19@gmail.com>
+17:55:11 [1] CLIENT -> SERVER: From: AR Tech Admin <support@artsbd.com>
+17:55:11 [1] CLIENT -> SERVER: Subject: Student Registration Confirmation
+17:55:11 [1] CLIENT -> SERVER: Message-ID: <QqGeKKLlSK0PI2yTk5eResnCObkRBvu6J0l9iEywDA@localhost>
+17:55:11 [1] CLIENT -> SERVER: X-Mailer: PHPMailer 7.0.2 (https://github.com/PHPMailer/PHPMailer)
+17:55:11 [1] CLIENT -> SERVER: MIME-Version: 1.0
+17:55:11 [1] CLIENT -> SERVER: Content-Type: text/html; charset=iso-8859-1
+17:55:11 [1] CLIENT -> SERVER: 
+17:55:11 [1] CLIENT -> SERVER: 
+17:55:11 [1] CLIENT -> SERVER:             <div style='font-family: Arial, sans-serif;'>
+17:55:11 [1] CLIENT -> SERVER:                 <h3>Dear Md. Jahidul Hakim,</h3>
+17:55:11 [1] CLIENT -> SERVER:                 <p>Your student record has been successfully registered in our system.</p>
+17:55:11 [1] CLIENT -> SERVER:                 <p><strong>Student ID:</strong> 260702</p>
+17:55:11 [1] CLIENT -> SERVER:                 <p><strong>Course:</strong> Graphic Design</p>
+17:55:11 [1] CLIENT -> SERVER:                 <p><strong>Start Date:</strong> 2026-05-05</p>
+17:55:11 [1] CLIENT -> SERVER:                 <p><strong>End Date:</strong> 2026-10-25</p>
+17:55:11 [1] CLIENT -> SERVER:                 <p>Thank you for joining AR TECH SOLUTION.</p>
+17:55:11 [1] CLIENT -> SERVER:                 <hr>
+17:55:11 [1] CLIENT -> SERVER:                 <small>This is an automated message, please do not reply.</small>
+17:55:11 [1] CLIENT -> SERVER:             </div>
+17:55:11 [1] CLIENT -> SERVER:         
+17:55:11 [1] CLIENT -> SERVER: 
+17:55:11 [1] CLIENT -> SERVER: .
+17:55:11 [2] SERVER -> CLIENT: 250 OK id=1wilIm-000000005D9-2Ok1
+17:55:11 [1] CLIENT -> SERVER: QUIT
+17:55:11 [2] SERVER -> CLIENT: 221 rain.mywhiteserver.com closing connection

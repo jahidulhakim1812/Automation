@@ -23,6 +23,7 @@
             <a href="incomplete_students.php"><?php echo get_sidebar_label('course_incomplete', 'Course Incomplete'); ?></a>
             <a href="blocked_students_list.php"><?php echo get_sidebar_label('Blocked_Student_List', 'Blocked Student List'); ?></a>
             <a href="ongoing_students.php"><?php echo get_sidebar_label('ongoing', 'Ongoing'); ?></a>
+            <a href="student_summary.php"><?php echo get_sidebar_label('summary', 'summary'); ?></a>
         </div>
     </div>
 
