@@ -181,8 +181,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // --- SMTP settings (copied from your working due‑payment script) ---
         $mail->Host       = 'rain.mywhiteserver.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'support@artsbd.com';
-        $mail->Password   = 'SALMANKHAN017';
+        $mail->Username   = '';
+        $mail->Password   = '';
         $mail->SMTPSecure = 'tls';
         $mail->Port       = 587;
 
