@@ -110,6 +110,16 @@ for ($i = 11; $i >= 0; $i--) {
     $revenueData[] = (float)($r6->fetch_assoc()['total'] ?? 0) + (float)($sv->fetch_assoc()['total'] ?? 0);
 }
 
+/* ── Monthly Expenses (last 12 months) ────────── */
+$expenseMonthlyData = [];
+for ($i = 11; $i >= 0; $i--) {
+    $ts = strtotime("-$i months");
+    $m  = date('m', $ts);
+    $y  = date('Y', $ts);
+    $rExpMonth = $conn->query("SELECT SUM(amount) AS total FROM expenses WHERE YEAR(expense_date)='$y' AND MONTH(expense_date)='$m'");
+    $expenseMonthlyData[] = (float)($rExpMonth->fetch_assoc()['total'] ?? 0);
+}
+
 /* ── Status distribution (using course_status column) ── */
 $statusCounts = ['completed' => 0, 'ongoing' => 0, 'incomplete' => 0];
 foreach (['completed', 'ongoing', 'incomplete'] as $s) {
@@ -134,15 +144,16 @@ if ($r9) while ($row9 = $r9->fetch_assoc()) $topCustomers[] = $row9;
 $conn->close();
 
 /* ── JSON for charts ─────────────────────────── */
-$monthlyLabelsJson  = json_encode($monthlyLabels);
-$monthlyDataJson    = json_encode($monthlyData);
-$revenueDataJson    = json_encode($revenueData);
-$categoryLabels     = json_encode(array_keys($counts));
-$categoryData       = json_encode(array_values($counts));
-$statusLabels       = json_encode(['Completed','Ongoing','Incomplete']);
-$statusDataJson     = json_encode(array_values($statusCounts));
-$invStatusLabels    = json_encode(['Paid','Partial','Unpaid']);
-$invStatusDataJson  = json_encode(array_values($invStatusCounts));
+$monthlyLabelsJson      = json_encode($monthlyLabels);
+$monthlyDataJson        = json_encode($monthlyData);
+$revenueDataJson        = json_encode($revenueData);
+$expenseMonthlyDataJson = json_encode($expenseMonthlyData);
+$categoryLabels         = json_encode(array_keys($counts));
+$categoryData           = json_encode(array_values($counts));
+$statusLabels           = json_encode(['Completed','Ongoing','Incomplete']);
+$statusDataJson         = json_encode(array_values($statusCounts));
+$invStatusLabels        = json_encode(['Paid','Partial','Unpaid']);
+$invStatusDataJson      = json_encode(array_values($invStatusCounts));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -736,6 +747,11 @@ body::before {
             <div class="chart-title">💹 Monthly Revenue — Last 12 Months</div>
             <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
         </div>
+        <!-- NEW: Monthly Expenses Chart -->
+        <div class="chart-card full">
+            <div class="chart-title">📊 Monthly Expenses — Last 12 Months</div>
+            <div class="chart-wrap"><canvas id="expenseChart"></canvas></div>
+        </div>
         <div class="chart-card">
             <div class="chart-title">🎓 Enrollment by Category</div>
             <div class="chart-wrap"><canvas id="barChart"></canvas></div>
@@ -811,6 +827,7 @@ body::before {
 const monthlyLabels  = <?= $monthlyLabelsJson ?>;
 const monthlyData    = <?= $monthlyDataJson ?>;
 const revenueData    = <?= $revenueDataJson ?>;
+const expenseMonthlyData = <?= $expenseMonthlyDataJson ?>;
 const categoryLabels = <?= $categoryLabels ?>;
 const categoryData   = <?= $categoryData ?>;
 const statusLabels   = <?= $statusLabels ?>;
@@ -836,7 +853,7 @@ Chart.defaults.font.size = 12;
 
 const gridColor = 'rgba(255,255,255,0.06)';
 
-/* LINE CHART */
+/* LINE CHART – Enrollment */
 new Chart(document.getElementById('lineChart'), {
     type: 'line',
     data: {
@@ -882,7 +899,30 @@ new Chart(document.getElementById('revenueChart'), {
     }
 });
 
-/* BAR CHART — now includes Web Development color (BLUE) */
+/* EXPENSE LINE CHART (NEW) */
+new Chart(document.getElementById('expenseChart'), {
+    type: 'line',
+    data: {
+        labels: monthlyLabels,
+        datasets: [{
+            label: 'Expenses (৳)',
+            data: expenseMonthlyData,
+            borderColor: ORANGE, backgroundColor: 'rgba(225,112,85,0.10)',
+            borderWidth: 2.5, pointBackgroundColor: ORANGE, pointRadius: 4,
+            tension: 0.4, fill: true
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(10,15,35,0.95)', borderColor: ORANGE, borderWidth: 1, callbacks: { label: ctx => '৳ ' + ctx.parsed.y.toLocaleString() } } },
+        scales: {
+            x: { grid: { color: gridColor }, ticks: { maxRotation: 45 } },
+            y: { grid: { color: gridColor }, beginAtZero: true, ticks: { callback: v => '৳'+v.toLocaleString() } }
+        }
+    }
+});
+
+/* BAR CHART – Category */
 new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: {
@@ -899,7 +939,7 @@ new Chart(document.getElementById('barChart'), {
     }
 });
 
-/* PIE CHART */
+/* PIE CHART – Student Status */
 new Chart(document.getElementById('pieChart'), {
     type: 'pie',
     data: {
@@ -912,7 +952,7 @@ new Chart(document.getElementById('pieChart'), {
     }
 });
 
-/* DOUGHNUT CHART */
+/* DOUGHNUT – Invoice Status */
 new Chart(document.getElementById('doughnutChart'), {
     type: 'doughnut',
     data: {
