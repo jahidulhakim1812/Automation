@@ -64,6 +64,24 @@
     <a href="delete.php"><?php echo get_sidebar_label('delete', '🗑️ Delete'); ?></a>
     <a href="report.php"><?php echo get_sidebar_label('report', '📄 Report'); ?></a>
     <a href="bulk_email.php"><?php echo get_sidebar_label('Bulk_Email', '✉️ Bulk Email'); ?></a>
+    
+    <!-- Marks Group -->
+<div class="menu-group">
+    <div class="menu-toggle">
+        <?php echo get_sidebar_label('marks', '📊 Marks'); ?>
+        <span class="menu-arrow">▾</span>
+    </div>
+    <div class="submenu">
+        <a href="add_marks.php">
+            <?php echo get_sidebar_label('add_marks', 'Add Marks'); ?>
+        </a>
+        <a href="marks.php">
+            <?php echo get_sidebar_label('marks_list', 'Marks List'); ?>
+        </a>
+        
+    </div>
+</div><bar_label('Add_Marks', 'Add Marks'); ?></a>
+
 
     <!-- Payment Group -->
     <div class="menu-group">
@@ -78,6 +96,7 @@
              <a href="whatsapp_due.php"><?php echo get_sidebar_label('send_whatsapp_message', 'Send Whatsapp Message'); ?></a>
         </div>
     </div>
+
 
     <!-- Attendance Group -->
     <div class="menu-group">
